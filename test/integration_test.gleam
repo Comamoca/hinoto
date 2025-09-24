@@ -1,5 +1,4 @@
 import conversation.{Text}
-import gleam/dict
 import gleam/javascript/promise
 import gleeunit
 import gleeunit/should
@@ -31,7 +30,7 @@ pub fn handler_chaining_concept_test() {
 
 // Test Environment and Context types can be used together
 pub fn environment_context_integration_test() {
-  let env = hinoto.Environment(env: dict.new())
+  let env = hinoto.Environment
   let context = hinoto.Context
   let default_context = hinoto.DefaultContext(env: env, context: context)
 
@@ -40,7 +39,7 @@ pub fn environment_context_integration_test() {
     hinoto.DefaultContext(env: test_env, context: test_context) -> {
       // Test that both components are preserved
       case test_env {
-        hinoto.Environment(_) -> True
+        hinoto.Environment -> True
       }
       |> should.be_true()
 

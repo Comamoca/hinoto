@@ -5,7 +5,6 @@
 import conversation.{
   type JsRequest, type JsResponse, type RequestBody, type ResponseBody,
 }
-import gleam/dict
 import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
 import gleam/javascript/promise.{type Promise}
@@ -19,7 +18,7 @@ pub type Context {
 /// Represents the environment variables and configuration.
 /// This contains runtime-specific environment data.
 pub type Environment {
-  Environment(env: dict.Dict(String, String))
+  Environment
 }
 
 /// The default context type that combines environment and execution context.

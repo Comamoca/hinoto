@@ -3,6 +3,6 @@ import { main } from "./workers.mjs";
 
 export default {
   async fetch(req, env, ctx) {
-    return await hinoto.handle_request(req, ctx, main);
+      return await hinoto.handle_request(req, { env, ctx }, main);
   },
 };
