@@ -1,10 +1,10 @@
 <div align="center">
 
-![Last commit](https://img.shields.io/github/last-commit/Comamoca/baserepo?style=flat-square)
-![Repository Stars](https://img.shields.io/github/stars/Comamoca/baserepo?style=flat-square)
-![Issues](https://img.shields.io/github/issues/Comamoca/baserepo?style=flat-square)
-![Open Issues](https://img.shields.io/github/issues-raw/Comamoca/baserepo?style=flat-square)
-![Bug Issues](https://img.shields.io/github/issues/Comamoca/baserepo/bug?style=flat-square)
+![Last commit](https://img.shields.io/github/last-commit/Comamoca/hinoto?style=flat-square)
+![Repository Stars](https://img.shields.io/github/stars/Comamoca/hinoto?style=flat-square)
+![Issues](https://img.shields.io/github/issues/Comamoca/hinoto?style=flat-square)
+![Open Issues](https://img.shields.io/github/issues-raw/Comamoca/hinoto?style=flat-square)
+![Bug Issues](https://img.shields.io/github/issues/Comamoca/hinoto/bug?style=flat-square)
 
 <img src="https://emoji2svg.deno.dev/api/🔥" alt="fire" height="100">
 
