@@ -1,48 +1,70 @@
 /// Hinoto - A web framework written in Gleam, designed for multiple JavaScript runtimes!
 ///
 /// This library provides a simple and ergonomic way to handle HTTP requests and responses
-/// in a Cloudflare Workers or similar JavaScript runtime environment.
-import conversation.{
-  type JsRequest, type JsResponse, type RequestBody, type ResponseBody,
-}
+/// in various JavaScript runtime environments.
 import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
-import gleam/javascript/promise.{type Promise}
 
-/// Represents the execution context for a request.
-/// This is typically provided by the runtime environment (e.g., Cloudflare Workers).
-pub type Context {
-  Context
-}
+@target(javascript)
+import gleam/javascript/promise.{type Promise, await as promise_await, resolve as promise_resolve}
 
-/// Represents the environment variables and configuration.
-/// This contains runtime-specific environment data.
-pub type Environment {
-  Environment
-}
+@target(javascript)
+import gleam/javascript/promise
 
-/// The default context type that combines environment and execution context.
-/// This is the most commonly used context type for standard request handling.
-pub type DefaultContext {
-  DefaultContext(env: Environment, context: Context)
-}
+@target(erlang)
+import mist.{type Connection}
+
+/// Common JavaScript request type used across all JavaScript runtimes
+/// (Node.js, Deno, Bun, Cloudflare Workers)
+///
+/// Note: This type is only used in JavaScript targets. It's defined for all targets
+/// to allow import statements in runtime modules, but has no meaning in Erlang.
+pub type JsRequest
+
+/// Common JavaScript response type used across all JavaScript runtimes
+/// (Node.js, Deno, Bun, Cloudflare Workers)
+///
+/// Note: This type is only used in JavaScript targets. It's defined for all targets
+/// to allow import statements in runtime modules, but has no meaning in Erlang.
+pub type JsResponse
 
 /// The core Hinoto type that encapsulates an HTTP request-response cycle.
 ///
-/// This type is parameterized over a context type, allowing for flexible
-/// context management depending on your application's needs.
+/// This type is parameterized over both a context type and a body type,
+/// allowing for flexible context management and body handling depending
+/// on your application's needs.
 ///
 /// ## Fields
 /// - `request`: The incoming HTTP request
-/// - `response`: A promise that resolves to the HTTP response
-/// - `ctx`: The context data (environment, execution context, etc.)
-pub type Hinoto(context) {
-  Hinoto(
-    request: Request(RequestBody),
-    response: Promise(Response(ResponseBody)),
-    context: context,
-  )
+/// - `response`: The HTTP response
+/// - `context`: The context data (environment, execution context, etc.)
+///
+/// ## Type Parameters
+/// - `context`: The type of context data (e.g., Cloudflare Workers ExecutionContext)
+/// - `body`: The type of request/response body (typically String or BitArray)
+pub type Hinoto(context, body) {
+  Hinoto(request: Request(body), response: Response(body), context: context)
 }
+
+/// Type alias for Hinoto with Mist's Connection type (Erlang target only).
+///
+/// This type alias provides a convenient way to work with Hinoto in the Erlang
+/// runtime using Mist's Connection type as the body type.
+///
+/// ## Type Parameters
+/// - `context`: The type of context data
+///
+/// ## Example
+/// ```gleam
+/// let hinoto_mist: HinotoMist(MyContext) = Hinoto(
+///   request: req,
+///   response: resp,
+///   context: my_context
+/// )
+/// ```
+@target(erlang)
+pub type HinotoMist(context) =
+  Hinoto(context, Connection)
 
 /// Sets a new response for the Hinoto instance.
 ///
@@ -51,55 +73,15 @@ pub type Hinoto(context) {
 ///
 /// ## Parameters
 /// - `hinoto`: The current Hinoto instance
-/// - `response`: The new response promise to set
+/// - `response`: The new response to set
 ///
 /// ## Returns
 /// A new Hinoto instance with the updated response
 pub fn set_response(
-  hinoto: Hinoto(context),
-  response: Promise(Response(ResponseBody)),
-) {
-  Hinoto(request: hinoto.request, response:, context: hinoto.context)
-}
-
-/// Handles an incoming JavaScript request using the provided handler function.
-///
-/// This is the main entry point for processing HTTP requests. It converts
-/// a JavaScript request to a Gleam request, processes it through your handler,
-/// and converts the response back to a JavaScript response.
-///
-/// ## Parameters
-/// - `req`: The incoming JavaScript request object
-/// - `env`: The environment configuration
-/// - `context`: The execution context
-/// - `handler`: A function that processes the Hinoto instance and returns a modified one
-///
-/// ## Returns
-/// A promise that resolves to a JavaScript response object
-///
-/// ## Example
-/// ```gleam
-/// let my_handler = fn(hinoto) {
-///   hinoto
-///   |> update_response(promise.resolve(response.new(200)))
-/// }
-///
-/// handle_request(req, env, ctx, my_handler)
-/// ```
-pub fn handle_request(
-  req: JsRequest,
-  context: context,
-  handler: fn(Hinoto(context)) -> Hinoto(context),
-) -> Promise(JsResponse) {
-  let hinoto =
-    handler(Hinoto(
-      request: conversation.to_gleam_request(req),
-      response: default_handler(),
-      context: context,
-    ))
-
-  hinoto.response
-  |> promise.map(conversation.to_js_response)
+  hinoto: Hinoto(context, body),
+  response: Response(body),
+) -> Hinoto(context, body) {
+  Hinoto(request: hinoto.request, response: response, context: hinoto.context)
 }
 
 /// Default response handler that returns a simple "Hello from hinoto!" message.
@@ -108,11 +90,10 @@ pub fn handle_request(
 /// It's used as the default response when no custom handler is provided.
 ///
 /// ## Returns
-/// A promise that resolves to a Response with status 200 and "Hello from hinoto!" text
-pub fn default_handler() -> Promise(Response(ResponseBody)) {
+/// A Response with status 200 and "Hello from hinoto!" text
+pub fn default_response() -> Response(String) {
   response.new(200)
-  |> response.set_body(conversation.Text("Hello from hinoto!"))
-  |> promise.resolve
+  |> response.set_body("Hello from hinoto!")
 }
 
 /// Updates the request in a Hinoto instance.
@@ -126,91 +107,94 @@ pub fn default_handler() -> Promise(Response(ResponseBody)) {
 ///
 /// ## Returns
 /// A new Hinoto instance with the updated request
-pub fn update_request(
-  hinoto: Hinoto(context),
-  request: Request(RequestBody),
-) -> Hinoto(context) {
-  Hinoto(request:, response: hinoto.response, context: hinoto.context)
+pub fn set_request(
+  hinoto: Hinoto(context, body),
+  request: Request(body),
+) -> Hinoto(context, body) {
+  Hinoto(request: request, response: hinoto.response, context: hinoto.context)
 }
 
-/// Updates the response in a Hinoto instance.
+/// Updates the context in a Hinoto instance.
 ///
-/// This function creates a new Hinoto instance with the provided response,
-/// while preserving the existing request and context.
+/// This function creates a new Hinoto instance with the provided context,
+/// while preserving the existing request and response.
 ///
 /// ## Parameters
 /// - `hinoto`: The current Hinoto instance
-/// - `response`: The new response promise to set
+/// - `context`: The new context to set
 ///
 /// ## Returns
-/// A new Hinoto instance with the updated response
-pub fn update_response(
-  hinoto: Hinoto(context),
-  response: Promise(Response(ResponseBody)),
-) -> Hinoto(context) {
-  Hinoto(request: hinoto.request, response:, context: hinoto.context)
-}
-
-/// Updates the environment in a Hinoto instance.
-///
-/// Note: This function currently updates the response instead of the environment.
-/// This appears to be a bug and should be fixed to update the environment in the context.
-///
-/// ## Parameters
-/// - `hinoto`: The current Hinoto instance
-/// - `response`: The new response promise to set (should be environment instead)
-///
-/// ## Returns
-/// A new Hinoto instance with the updated response
-pub fn update_environment(
-  hinoto: Hinoto(context),
-  response: Promise(Response(ResponseBody)),
-) -> Hinoto(context) {
-  Hinoto(request: hinoto.request, response:, context: hinoto.context)
+/// A new Hinoto instance with the updated context
+pub fn set_context(
+  hinoto: Hinoto(old_context, body),
+  context: new_context,
+) -> Hinoto(new_context, body) {
+  Hinoto(request: hinoto.request, response: hinoto.response, context: context)
 }
 
 /// Applies a handler function to the request and updates the response.
 ///
 /// This is a convenience function that takes a handler which processes
-/// the request and returns a response promise. The response is then
-/// set on the Hinoto instance.
+/// the request and returns a response (wrapped in a Promise for JavaScript target).
+/// The response is then set on the Hinoto instance.
+///
+/// ## JavaScript Target
+/// The handler must return a `Promise(Response(body))`. Use `promise.resolve()`
+/// for synchronous responses or `promise.await()` with `use` syntax for async operations.
+///
+/// ## Erlang Target
+/// The handler returns a `Response(body)` directly (synchronous).
 ///
 /// ## Parameters
 /// - `hinoto`: The current Hinoto instance
-/// - `handler`: A function that takes a request and returns a response promise
+/// - `handler`: A function that takes a request and returns a response (Promise for JS, direct for Erlang)
 ///
 /// ## Returns
 /// A new Hinoto instance with the response updated by the handler
 ///
-/// ## Example
+/// ## Example (JavaScript)
 /// ```gleam
-/// let my_handler = fn(req) {
-///   response.new(200)
-///   |> response.set_body(conversation.Text("Processed!"))
-///   |> promise.resolve
-/// }
+/// // Synchronous response (returns Promise(Hinoto))
+/// let result_promise = hinoto
+/// |> handle(fn(req) {
+///   promise.resolve(
+///     response.new(200)
+///     |> response.set_body("Processed!")
+///   )
+/// })
 ///
-/// hinoto |> handle(my_handler)
+/// // Asynchronous response
+/// let result_promise = hinoto
+/// |> handle(fn(req) {
+///   use data <- promise.await(fetch_data())
+///   promise.resolve(
+///     response.new(200)
+///     |> response.set_body(data)
+///   )
+/// })
 /// ```
+///
+/// ## Example (Erlang)
+/// ```gleam
+/// hinoto
+/// |> handle(fn(req) {
+///   response.new(200)
+///   |> response.set_body("Processed!")
+/// })
+/// ```
+@target(javascript)
 pub fn handle(
-  hinoto: Hinoto(context),
-  handler: fn(Request(RequestBody)) -> Promise(Response(ResponseBody)),
-) -> Hinoto(context) {
-  set_response(hinoto, handler(hinoto.request))
+  hinoto: Hinoto(context, body),
+  handler: fn(Request(body)) -> Promise(Response(body)),
+) -> Promise(Hinoto(context, body)) {
+  use resp <- promise.await(handler(hinoto.request))
+  promise.resolve(set_response(hinoto, resp))
 }
 
-// pub fn fetch(
-//   handler: fn(Hinoto(context)) -> Hinoto(context),
-// ) -> fn(JsRequest) -> Promise(JsResponse) {
-//   let wrap = fn(request: JsRequest) -> Promise(JsResponse) { promise.resolve }
-
-//   wrap
-// }
-
-pub fn fetch(handler) {
-  let ctx = Context
-
-  fn(req: JsRequest) -> Promise(JsResponse) {
-    handle_request(req, ctx, handler)
-  }
+@target(erlang)
+pub fn handle(
+  hinoto: Hinoto(context, body),
+  handler: fn(Request(body)) -> Response(body),
+) -> Hinoto(context, body) {
+  set_response(hinoto, handler(hinoto.request))
 }

@@ -6,4 +6,4 @@ compatibility_date = "2023-09-22"
 command = "gleam build --no-print-progress"
 
 [vars]
-TEST_ENV = "hello"
+TEST_ENV = "test env"

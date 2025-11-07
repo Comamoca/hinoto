@@ -6,12 +6,28 @@
 //// utilizing the Hono.js Node.js adapter.
 ////
 
-import conversation.{type JsRequest, type JsResponse}
-import gleam/int
-import gleam/io
-import gleam/javascript/promise.{type Promise}
-import gleam/option.{type Option, None, Some}
+@target(javascript)
+import gleam/http/request.{type Request}
 
+@target(javascript)
+import gleam/http/response.{type Response}
+
+@target(javascript)
+import gleam/int
+
+@target(javascript)
+import gleam/io
+
+@target(javascript)
+import gleam/javascript/promise.{type Promise, await as promise_await}
+
+@target(javascript)
+import gleam/option.{None, Some}
+
+@target(javascript)
+import hinoto.{type Hinoto, type JsRequest, type JsResponse}
+
+@target(javascript)
 /// Default port used when none is specified
 const default_port = 3000
 
@@ -23,6 +39,17 @@ pub type Info {
   Info(address: String, family: String, port: Int)
 }
 
+@target(javascript)
+/// Converts a Node.js request to a Gleam HTTP request
+@external(javascript, "./ffi.node.mjs", "toGleamRequest")
+pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
+
+@target(javascript)
+/// Converts a Gleam HTTP response to a Node.js response
+@external(javascript, "./ffi.node.mjs", "toNodeResponse")
+pub fn to_node_response(resp: Response(String)) -> Promise(JsResponse)
+
+@target(javascript)
 /// External FFI function that interfaces with Node.js HTTP server via Hono.js adapter
 @external(javascript, "./ffi.node.mjs", "serve")
 fn hono_serve(
@@ -31,6 +58,64 @@ fn hono_serve(
   callback: fn(Info) -> Nil,
 ) -> Nil
 
+@target(javascript)
+/// Creates a handler for Node.js server with Hinoto
+///
+/// This function wraps your application handler to work with Node.js HTTP server.
+/// The handler uses Promise-based async operations for handling requests.
+///
+/// **Important**: In JavaScript targets, the `hinoto.handle` function returns a
+/// `Promise(Hinoto)`, so you must use `promise.await` to handle the result.
+///
+/// ## Parameters
+/// - `app_handler`: Your application handler that processes Hinoto instances and
+///   returns a Promise of the updated instance
+///
+/// ## Returns
+/// A Promise-based function that can be used with `start_server`
+///
+/// ## Example (Promise-based handler)
+/// ```gleam
+/// import hinoto
+/// import hinoto/runtime/node
+/// import gleam/http/response
+/// import gleam/javascript/promise
+///
+/// pub fn main() {
+///   let handler = node.handler(fn(hinoto_instance) {
+///     use updated_hinoto <- promise.await(
+///       hinoto_instance
+///       |> hinoto.handle(fn(_req) {
+///         promise.resolve(
+///           response.new(200)
+///           |> response.set_body("Hello from Node.js!")
+///         )
+///       })
+///     )
+///     promise.resolve(updated_hinoto)
+///   })
+///   node.start_server(handler, None, None)
+/// }
+/// ```
+pub fn handler(
+  app_handler: fn(Hinoto(Nil, String)) -> Promise(Hinoto(Nil, String)),
+) -> fn(JsRequest) -> Promise(JsResponse) {
+  fn(req: JsRequest) {
+    use gleam_request <- promise.await(to_gleam_request(req))
+
+    let hinoto_instance =
+      hinoto.Hinoto(
+        request: gleam_request,
+        response: hinoto.default_response(),
+        context: Nil,
+      )
+
+    use updated_hinoto <- promise.await(app_handler(hinoto_instance))
+    to_node_response(updated_hinoto.response)
+  }
+}
+
+@target(javascript)
 /// Starts an HTTP server using Node.js runtime
 ///
 /// This function provides a convenient interface to start a server with optional
@@ -51,19 +136,19 @@ fn hono_serve(
 /// import gleam/io
 ///
 /// // Start server with default settings
-/// node.serve(my_fetch_handler, None, None)
+/// node.start_server(my_fetch_handler, None, None)
 ///
 /// // Start server on specific port
-/// node.serve(my_fetch_handler, Some(8080), None)
+/// node.start_server(my_fetch_handler, Some(8080), None)
 ///
 /// // Start server with custom callback
 /// let custom_callback = fn(info) {
 ///   io.println("Server running on port " <> int.to_string(info.port))
 /// }
-/// node.serve(my_fetch_handler, Some(8080), Some(custom_callback))
+/// node.start_server(my_fetch_handler, Some(8080), Some(custom_callback))
 /// ```
 ///
-pub fn serve(
+pub fn start_server(
   fetch: fn(JsRequest) -> Promise(JsResponse),
   port: Option(Int),
   callback: Option(fn(Info) -> Nil),
@@ -76,6 +161,7 @@ pub fn serve(
   }
 }
 
+@target(javascript)
 /// Default callback function used when no custom callback is provided
 ///
 /// This function logs a message indicating the server is listening and provides

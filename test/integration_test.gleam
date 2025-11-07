@@ -1,72 +1,98 @@
-import conversation.{Text}
-import gleam/javascript/promise
+import gleam/http/request
+import gleam/http/response
 import gleeunit
 import gleeunit/should
 import hinoto
+
+@target(javascript)
+import gleam/javascript/promise
 
 pub fn main() -> Nil {
   gleeunit.main()
 }
 
-// Basic integration test for handler chaining concept
-pub fn handler_chaining_concept_test() {
-  // Test that we can create responses and they have the expected structure
-  let response1 = hinoto.default_handler()
-  let _response2 =
-    promise.resolve(
-      hinoto.default_handler()
-      |> promise.map(fn(resp) {
-        // Simulate modifying the response
-        resp
-      }),
-    )
+// Test handler chaining (JavaScript target with Promise)
+@target(javascript)
+pub fn handler_chaining_js_test() {
+  let req = request.new() |> request.set_body("test")
+  let resp = hinoto.default_response()
+  let hinoto_instance =
+    hinoto.Hinoto(request: req, response: resp, context: Nil)
 
-  response1
-  |> promise.map(fn(resp) {
-    resp.status
-    |> should.equal(200)
-  })
+  let result_promise =
+    hinoto_instance
+    |> hinoto.handle(fn(_req) {
+      promise.resolve(response.new(200) |> response.set_body("Step 1"))
+    })
+
+  use result <- promise.await(result_promise)
+  let final_result = hinoto.set_response(result, response.new(201) |> response.set_body("Step 2"))
+
+  final_result.response.status |> should.equal(201)
+  final_result.response.body |> should.equal("Step 2")
+  promise.resolve(Nil)
 }
 
-// Test Environment and Context types can be used together
-pub fn environment_context_integration_test() {
-  let env = hinoto.Environment
-  let context = hinoto.Context
-  let default_context = hinoto.DefaultContext(env: env, context: context)
+// Test context preservation through operations (JavaScript target)
+@target(javascript)
+pub fn context_preservation_js_test() {
+  let req = request.new() |> request.set_body("test")
+  let resp = response.new(200) |> response.set_body("test")
+  let hinoto_instance =
+    hinoto.Hinoto(request: req, response: resp, context: "my_context")
 
-  // Verify the integration works
-  case default_context {
-    hinoto.DefaultContext(env: test_env, context: test_context) -> {
-      // Test that both components are preserved
-      case test_env {
-        hinoto.Environment -> True
-      }
-      |> should.be_true()
+  let result_promise =
+    hinoto_instance
+    |> hinoto.handle(fn(_req) {
+      promise.resolve(response.new(200) |> response.set_body("updated"))
+    })
 
-      case test_context {
-        hinoto.Context -> True
-      }
-      |> should.be_true()
-    }
-  }
+  use result <- promise.await(result_promise)
+  result.context |> should.equal("my_context")
+  promise.resolve(Nil)
+}
+
+// Test handler chaining (Erlang target - synchronous)
+@target(erlang)
+pub fn handler_chaining_erlang_test() {
+  let req = request.new() |> request.set_body("test")
+  let resp = hinoto.default_response()
+  let hinoto_instance =
+    hinoto.Hinoto(request: req, response: resp, context: Nil)
+
+  let result =
+    hinoto_instance
+    |> hinoto.handle(fn(_req) {
+      response.new(200) |> response.set_body("Step 1")
+    })
+    |> hinoto.set_response(response.new(201) |> response.set_body("Step 2"))
+
+  result.response.status |> should.equal(201)
+  result.response.body |> should.equal("Step 2")
+}
+
+// Test context preservation (Erlang target - synchronous)
+@target(erlang)
+pub fn context_preservation_erlang_test() {
+  let req = request.new() |> request.set_body("test")
+  let resp = response.new(200) |> response.set_body("test")
+  let hinoto_instance =
+    hinoto.Hinoto(request: req, response: resp, context: "my_context")
+
+  let result =
+    hinoto_instance
+    |> hinoto.handle(fn(_req) {
+      response.new(200) |> response.set_body("updated")
+    })
+
+  result.context |> should.equal("my_context")
 }
 
 // Test response creation and modification
 pub fn response_creation_test() {
-  let original_response = hinoto.default_handler()
+  let original_response = hinoto.default_response()
 
-  original_response
-  |> promise.map(fn(resp) {
-    // Verify response structure
-    resp.status |> should.equal(200)
-    resp.body |> should.equal(Text("Hello from hinoto!"))
-  })
-}
-
-// Test Promise handling
-pub fn promise_handling_test() {
-  let test_promise = promise.resolve("test value")
-
-  test_promise
-  |> promise.map(fn(value) { value |> should.equal("test value") })
+  // Verify response structure
+  original_response.status |> should.equal(200)
+  original_response.body |> should.equal("Hello from hinoto!")
 }

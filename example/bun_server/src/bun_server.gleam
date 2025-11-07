@@ -1,19 +1,36 @@
-import conversation.{Text}
+import gleam/http/request
 import gleam/http/response
 import gleam/javascript/promise
 import gleam/option.{None}
+import gleam/string
 import hinoto
 import hinoto/runtime/bun
 
 pub fn main() -> Nil {
-  bun.serve(hinoto.fetch(handler), None, None)
+  let fetch_handler =
+    bun.handler(fn(hinoto_instance) {
+      use updated_hinoto <- promise.await(
+        hinoto_instance
+        |> hinoto.handle(handler),
+      )
+      promise.resolve(updated_hinoto)
+    })
+
+  bun.start_server(fetch_handler, None, None)
 }
 
-fn handler(hinoto) {
-  use _req <- hinoto.handle(hinoto)
-
-  response.new(200)
-  |> response.set_body(Text("<h1>Hello, Hinoto with Bun!</h1>"))
-  |> response.set_header("content-type", "text/html")
+pub fn handler(req) {
+  case request.path_segments(req) {
+    [] -> create_response(200, "<h1>Hello, Hinoto with Bun!</h1>")
+    ["greet", name] ->
+      create_response(200, string.concat(["Hello! ", name, "!"]))
+    _ -> create_response(404, "<h1>Not Found</h1>")
+  }
   |> promise.resolve
+}
+
+pub fn create_response(status: Int, html: String) {
+  response.new(status)
+  |> response.set_body(html)
+  |> response.set_header("content-type", "text/html")
 }
