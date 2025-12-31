@@ -25,7 +25,46 @@ const default_hostname = "0.0.0.0"
 /// Default port used when none is specified
 const default_port = 3000
 
+@target(erlang)
+/// The core Hinoto type for Mist runtime (Erlang target only).
+///
+/// This type encapsulates an HTTP request-response cycle specifically for
+/// the Mist HTTP server on the Erlang runtime. It uses Mist's Connection type
+/// as the body type.
+///
+/// ## Fields
+/// - `request`: The incoming HTTP request with Connection body
+/// - `response`: The HTTP response with Connection body
+/// - `context`: The context data (environment, execution context, etc.)
+///
+/// ## Type Parameters
+/// - `context`: The type of context data
+///
+/// ## Example
+/// ```gleam
+/// import hinoto/runtime/mist.{type HinotoMist}
+/// import gleam/http/response
+///
+/// pub fn my_handler(hinoto: HinotoMist(Nil)) -> HinotoMist(Nil) {
+///   let new_response = response.new(200)
+///     |> response.set_body("Hello from Mist!")
+///
+///   HinotoMist(
+///     request: hinoto.request,
+///     response: new_response,
+///     context: hinoto.context
+///   )
+/// }
+/// ```
+pub type HinotoMist(context) {
+  HinotoMist(
+    request: Request(Connection),
+    response: Response(Connection),
+    context: context,
+  )
+}
 
+@target(erlang)
 /// Converts a Hinoto Response(String) to a Mist Response(ResponseData)
 ///
 /// This function converts a string-based response to Mist's ResponseData format,

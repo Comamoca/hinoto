@@ -11,9 +11,6 @@ import gleam/javascript/promise.{type Promise, await as promise_await, resolve a
 @target(javascript)
 import gleam/javascript/promise
 
-@target(erlang)
-import mist.{type Connection}
-
 /// Common JavaScript request type used across all JavaScript runtimes
 /// (Node.js, Deno, Bun, Cloudflare Workers)
 ///
@@ -45,26 +42,6 @@ pub type JsResponse
 pub type Hinoto(context, body) {
   Hinoto(request: Request(body), response: Response(body), context: context)
 }
-
-/// Type alias for Hinoto with Mist's Connection type (Erlang target only).
-///
-/// This type alias provides a convenient way to work with Hinoto in the Erlang
-/// runtime using Mist's Connection type as the body type.
-///
-/// ## Type Parameters
-/// - `context`: The type of context data
-///
-/// ## Example
-/// ```gleam
-/// let hinoto_mist: HinotoMist(MyContext) = Hinoto(
-///   request: req,
-///   response: resp,
-///   context: my_context
-/// )
-/// ```
-@target(erlang)
-pub type HinotoMist(context) =
-  Hinoto(context, Connection)
 
 /// Sets a new response for the Hinoto instance.
 ///
