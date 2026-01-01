@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-javascript:
+    name: Test JavaScript Target
     runs-on: ubuntu-latest
 
     steps:
@@ -27,11 +28,37 @@ jobs:
       - name: Install dependencies
         run: gleam deps download
 
-      - name: Check code
-        run: gleam check
+      - name: Check code (JavaScript target)
+        run: gleam check --target javascript
 
       - name: Check formatting
         run: gleam format --check
 
-      - name: Run tests
-        run: gleam test
+      - name: Build (JavaScript target)
+        run: gleam build --target javascript
+
+      - name: Run tests (JavaScript target)
+        run: gleam test --target javascript
+
+  test-erlang:
+    name: Test Erlang Target
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Gleam
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "26"
+          gleam-version: "1.12.0"
+          rebar3-version: "latest"
+
+      - name: Install dependencies
+        run: gleam deps download
+
+      - name: Build (Erlang target)
+        run: gleam build --target erlang
+
+      - name: Run tests (Erlang target)
+        run: gleam test --target erlang
