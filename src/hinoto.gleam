@@ -6,10 +6,12 @@ import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
 
 @target(javascript)
-import gleam/javascript/promise.{type Promise, await as promise_await, resolve as promise_resolve}
+import hinoto/body.{type Body}
 
 @target(javascript)
-import gleam/javascript/promise
+import gleam/javascript/promise.{
+  type Promise, await as promise_await, resolve as promise_resolve,
+}
 
 /// Common JavaScript request type used across all JavaScript runtimes
 /// (Node.js, Deno, Bun, Cloudflare Workers)
@@ -71,6 +73,19 @@ pub fn set_response(
 pub fn default_response() -> Response(String) {
   response.new(200)
   |> response.set_body("Hello from hinoto!")
+}
+
+@target(javascript)
+/// Default response handler with Body type (JavaScript target only)
+///
+/// This function creates a basic HTTP 200 OK response with a StringBody.
+/// It's used as the default response in JavaScript runtimes with Body type support.
+///
+/// ## Returns
+/// A Response with status 200 and StringBody("Hello from hinoto!")
+pub fn default_response_body() -> Response(Body) {
+  response.new(200)
+  |> response.set_body(body.StringBody("Hello from hinoto!"))
 }
 
 /// Updates the request in a Hinoto instance.

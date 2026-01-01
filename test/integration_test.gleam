@@ -26,7 +26,11 @@ pub fn handler_chaining_js_test() {
     })
 
   use result <- promise.await(result_promise)
-  let final_result = hinoto.set_response(result, response.new(201) |> response.set_body("Step 2"))
+  let final_result =
+    hinoto.set_response(
+      result,
+      response.new(201) |> response.set_body("Step 2"),
+    )
 
   final_result.response.status |> should.equal(201)
   final_result.response.body |> should.equal("Step 2")
