@@ -40,6 +40,9 @@ jobs:
       - name: Run tests (Node.js runtime)
         run: gleam test --target javascript --runtime node
 
+      - name: Check formatting
+        run: gleam format --check
+
   test-javascript-deno:
     name: Test JavaScript Target (Deno)
     runs-on: ubuntu-latest
@@ -66,6 +69,9 @@ jobs:
 
       - name: Run tests (Deno runtime)
         run: gleam test --target javascript --runtime deno
+
+      - name: Check formatting
+        run: gleam format --check
 
   test-javascript-bun:
     name: Test JavaScript Target (Bun)
@@ -94,6 +100,9 @@ jobs:
       - name: Run tests (Bun runtime)
         run: gleam test --target javascript --runtime bun
 
+      - name: Check formatting
+        run: gleam format --check
+
   test-erlang:
     name: Test Erlang Target
     runs-on: ubuntu-latest
@@ -116,3 +125,6 @@ jobs:
 
       - name: Run tests (Erlang target)
         run: gleam test --target erlang
+
+      - name: Check formatting
+        run: gleam format --check
