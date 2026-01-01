@@ -1,0 +1,25 @@
+{
+  "feature_name": "target-based-async-types",
+  "created_at": "2025-10-31T16:28:19+09:00",
+  "updated_at": "2025-10-31T20:30:00+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "revision_count": 2,
+      "last_revision": "2025-10-31T20:00:00+09:00",
+      "revision_reason": "後方互換性不要との方針転換、handle関数を直接Promise対応に書き換え、シンプルなAPI設計"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": true
+}
