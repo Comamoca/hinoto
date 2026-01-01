@@ -34,9 +34,11 @@ A web framework written in Gleam, designed for multiple JavaScript runtimes!
 ### Node.js Example (v2.0.0+)
 
 ```gleam
+import gleam/http/request
 import gleam/http/response
 import gleam/javascript/promise
 import gleam/option.{None}
+import gleam/string
 import hinoto
 import hinoto/runtime/node
 
@@ -45,45 +47,69 @@ pub fn main() -> Nil {
     node.handler(fn(hinoto_instance) {
       use updated_hinoto <- promise.await(
         hinoto_instance
-        |> hinoto.handle(fn(_req) {
-          promise.resolve(
-            response.new(200)
-            |> response.set_body("<h1>Hello from Hinoto!</h1>")
-            |> response.set_header("content-type", "text/html")
-          )
-        })
+        |> hinoto.handle(handler),
       )
       promise.resolve(updated_hinoto)
     })
 
   node.start_server(fetch_handler, None, None)
 }
+
+pub fn handler(req) {
+  case request.path_segments(req) {
+    [] -> create_response(404, "<h1>Hello, Hinoto with Node.js!</h1>")
+    ["greet", name] ->
+      create_response(200, string.concat(["Hello! ", name, "!"]))
+    _ -> create_response(404, "<h1>Not Found</h1>")
+  }
+  |> promise.resolve
+}
+
+pub fn create_response(status: Int, html: String) {
+  response.new(status)
+  |> response.set_body(html)
+  |> response.set_header("content-type", "text/html")
+}
 ```
 
 ### Cloudflare Workers Example (v2.0.0+)
 
 ```gleam
+import gleam/http/request
 import gleam/http/response
-import gleam/javascript/promise
-import hinoto
-import hinoto/runtime/workers
+import gleam/javascript/promise.{type Promise}
+import gleam/string
+import hinoto.{type Hinoto}
+import hinoto/runtime/workers.{type WorkersContext}
 
 pub fn main() {
-  workers.serve(fn(hinoto_instance) {
-    use updated_hinoto <- promise.await(
-      hinoto_instance
-      |> hinoto.handle(fn(_req) {
-        promise.resolve(
-          response.new(200)
-          |> response.set_body("<h1>Hello from Cloudflare Workers!</h1>")
-          |> response.set_header("content-type", "text/html")
-        )
-      })
+  workers.serve(fn(hinoto: Hinoto(WorkersContext, String)) -> Promise(
+    Hinoto(WorkersContext, String),
+  ) {
+    use hinoto <- promise.await(
+      hinoto
+      |> hinoto.handle(handler),
     )
-    promise.resolve(updated_hinoto)
+    promise.resolve(hinoto)
   })
 }
+
+pub fn handler(req) {
+  case request.path_segments(req) {
+    [] ->
+      create_response(200, "<h1>Hello, Hinoto with Cloudflare Workers!</h1>")
+    _ -> create_response(404, "<h1>Not Found</h1>")
+  }
+  |> promise.resolve
+}
+
+pub fn create_response(status: Int, html: String) {
+  response.new(status)
+  |> response.set_body(html)
+  |> response.set_header("content-type", "text/html")
+}
 ```
+
 
 > **Note**: v2.0.0 introduces Promise-based async handlers for JavaScript targets. See the [Migration Guide](#-migration-from-v1x-to-v20) below for upgrading from v1.x.
 
@@ -125,103 +151,9 @@ cd bun_server
 
 ## 📝 Todo
 
-- [ ] Add middleware
+See [todo.md](./docs/todo.md)
 
-## 🔄 Migration from v1.x to v2.0
-
-v2.0.0 introduces Promise-based async handlers for JavaScript targets, which is a **breaking change**.
-
-### Breaking Changes
-
-- **JavaScript targets**: `hinoto.handle` now returns `Promise(Hinoto)` instead of `Hinoto`
-- **Handler signature**: Handlers must return `Promise(Response)` instead of `Response`
-
-### Migration Steps
-
-#### Old Code (v1.x)
-
-```gleam
-hinoto_instance
-|> hinoto.handle(fn(_req) {
-  response.new(200)
-  |> response.set_body("Hello")
-})
-```
-
-#### New Code (v2.0.0) - Synchronous Response
-
-Wrap your synchronous response in `promise.resolve()`:
-
-```gleam
-import gleam/javascript/promise
-
-hinoto_instance
-|> hinoto.handle(fn(_req) {
-  promise.resolve(
-    response.new(200)
-    |> response.set_body("Hello")
-  )
-})
-```
-
-#### New Code (v2.0.0) - Async Operations
-
-Use `use` syntax with `promise.await` for async operations:
-
-```gleam
-import gleam/javascript/promise
-
-hinoto_instance
-|> hinoto.handle(fn(_req) {
-  use data <- promise.await(fetch_data())
-  promise.resolve(
-    response.new(200)
-    |> response.set_body(data)
-  )
-})
-```
-
-#### Handling the Result
-
-Since `handle` now returns a Promise, you must await it:
-
-```gleam
-// Old (v1.x)
-let result = hinoto_instance |> hinoto.handle(handler)
-
-// New (v2.0.0)
-use result <- promise.await(hinoto_instance |> hinoto.handle(handler))
-promise.resolve(result)
-```
-
-### Erlang Target with Mist
-
-The Erlang target with Mist uses **native streaming support** via `Request(Connection)`:
-
-```gleam
-import gleam/http/request.{type Request}
-import gleam/http/response.{type Response}
-import gleam/option.{None}
-import hinoto/runtime/mist as hinoto_mist
-import mist.{type Connection}
-
-pub fn main() {
-  let handler = fn(req: Request(Connection)) -> Response(String) {
-    case request.path_segments(req) {
-      [] -> response.new(200)
-            |> response.set_body("Home")
-      ["about"] -> response.new(200)
-                   |> response.set_body("About")
-      _ -> response.new(404)
-           |> response.set_body("Not Found")
-    }
-  }
-
-  hinoto_mist.start_server(handler, None, None)
-}
-```
-
-### Request Body Types by Runtime
+## Request Body Types by Runtime
 
 Each runtime uses an optimal body type for its environment:
 
@@ -244,7 +176,6 @@ MIT
 ### 🧩 Modules
 
 - [gleam_stdlib](https://hexdocs.pm/gleam_stdlib)
-- [conversation](https://hexdocs.pm/conversation)
 - [gleam_javascript](https://hexdocs.pm/gleam_javascript)
 - [gleam_http](https://hexdocs.pm/gleam_http)
 
