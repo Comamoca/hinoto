@@ -75,7 +75,6 @@ pub type HinotoMist(context) {
 ///
 /// ## Returns
 /// A Response(ResponseData) that Mist can send to the client
-@target(erlang)
 fn convert_response(hinoto_response: Response(String)) -> Response(ResponseData) {
   let body_data =
     hinoto_response.body
@@ -86,6 +85,7 @@ fn convert_response(hinoto_response: Response(String)) -> Response(ResponseData)
   |> response.set_body(body_data)
 }
 
+@target(erlang)
 /// Creates a Mist handler from a Hinoto-style handler function
 ///
 /// This function takes a handler that works with Request(Connection) and Response(String)
@@ -106,7 +106,6 @@ fn convert_response(hinoto_response: Response(String)) -> Response(ResponseData)
 ///
 /// let mist_handler = mist.handler(my_handler)
 /// ```
-@target(erlang)
 pub fn handler(
   hinoto_handler: fn(Request(Connection)) -> Response(String),
 ) -> fn(Request(Connection)) -> Response(ResponseData) {
@@ -116,6 +115,7 @@ pub fn handler(
   }
 }
 
+@target(erlang)
 /// Starts an HTTP server using Mist
 ///
 /// This function provides a convenient interface to start a Mist HTTP server
@@ -147,7 +147,6 @@ pub fn handler(
 /// // Start server on specific port
 /// mist.start_server(my_handler, Some(8080), None)
 /// ```
-@target(erlang)
 pub fn start_server(
   hinoto_handler: fn(Request(Connection)) -> Response(String),
   port: option.Option(Int),

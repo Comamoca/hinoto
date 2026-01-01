@@ -1,7 +1,7 @@
+@target(javascript)
 /// Cloudflare Workers runtime support for Hinoto
 ///
 /// This module provides types and functions specific to Cloudflare Workers runtime.
-@target(javascript)
 import gleam/http/request.{type Request}
 
 @target(javascript)
@@ -14,18 +14,25 @@ import gleam/javascript/promise.{type Promise, await as promise_await}
 import hinoto.{type Hinoto, type JsRequest, type JsResponse}
 
 @target(javascript)
+import hinoto/body.{type Body}
+
+@target(javascript)
 /// Type representing Cloudflare Workers execution context
 pub type WorkersContext
 
 @target(javascript)
 /// Converts a Cloudflare Workers request to a Gleam HTTP request
+///
+/// The request body is wrapped in a `Body` type with lazy evaluation.
+/// Use `body.read_text()`, `body.read_json()`, etc. to read the body content.
 @external(javascript, "./ffi.workers.mjs", "toGleamRequest")
-pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
+pub fn to_gleam_request(req: JsRequest) -> Request(Body)
 
 @target(javascript)
 /// Converts a Gleam HTTP response to a Cloudflare Workers response
+/// Note: Returns JsResponse directly for better performance (no unnecessary Promise wrapping)
 @external(javascript, "./ffi.workers.mjs", "toWorkersResponse")
-pub fn to_workers_response(resp: Response(String)) -> Promise(JsResponse)
+pub fn to_workers_response(resp: Response(Body)) -> JsResponse
 
 @target(javascript)
 /// Creates a fetch handler for Cloudflare Workers
@@ -66,20 +73,22 @@ pub fn to_workers_response(resp: Response(String)) -> Promise(JsResponse)
 /// }
 /// ```
 pub fn serve(
-  handler: fn(Hinoto(WorkersContext, String)) ->
-    Promise(Hinoto(WorkersContext, String)),
+  handler: fn(Hinoto(WorkersContext, Body)) ->
+    Promise(Hinoto(WorkersContext, Body)),
 ) -> fn(JsRequest, WorkersContext) -> Promise(JsResponse) {
   fn(req: JsRequest, ctx: WorkersContext) {
-    use gleam_request <- promise.await(to_gleam_request(req))
+    // Optimization: No await needed - to_gleam_request is synchronous now
+    let gleam_request = to_gleam_request(req)
 
     let hinoto =
       hinoto.Hinoto(
         request: gleam_request,
-        response: hinoto.default_response(),
+        response: hinoto.default_response_body(),
         context: ctx,
       )
 
     use updated_hinoto <- promise.await(handler(hinoto))
-    to_workers_response(updated_hinoto.response)
+    // Optimization: Wrap in promise.resolve only when needed for return type
+    promise.resolve(to_workers_response(updated_hinoto.response))
   }
 }

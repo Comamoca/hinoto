@@ -15,7 +15,7 @@ import gleam/http/response.{type Response}
 import gleam/javascript/promise.{type Promise, await as promise_await}
 
 @target(javascript)
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 
 @target(javascript)
 import hinoto.{type Hinoto, type JsRequest, type JsResponse}
@@ -35,8 +35,9 @@ pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
 
 @target(javascript)
 /// Converts a Gleam HTTP response to a Deno response
+/// Note: Returns JsResponse directly for better performance (no unnecessary Promise wrapping)
 @external(javascript, "./ffi.deno.mjs", "toDenoResponse")
-pub fn to_deno_response(resp: Response(String)) -> Promise(JsResponse)
+pub fn to_deno_response(resp: Response(String)) -> JsResponse
 
 @target(javascript)
 /// External FFI function that interfaces with Deno's HTTP server
@@ -100,7 +101,8 @@ pub fn handler(
       )
 
     use updated_hinoto <- promise.await(app_handler(hinoto_instance))
-    to_deno_response(updated_hinoto.response)
+    // Optimization: Wrap in promise.resolve only when needed for return type
+    promise.resolve(to_deno_response(updated_hinoto.response))
   }
 }
 
