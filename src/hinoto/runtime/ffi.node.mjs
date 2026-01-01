@@ -2,17 +2,29 @@ import { serve as hono_serve } from "@hono/node-server";
 import { List } from "../../../prelude.mjs";
 
 /**
+ * Checks if the request body should be read based on HTTP method
+ * @param {string} method - HTTP method
+ * @returns {boolean} true if body should be read
+ */
+function shouldReadBody(method) {
+  const m = method.toUpperCase();
+  // Don't read body for methods that typically don't have one
+  return !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(m);
+}
+
+/**
  * Converts a Node.js/Hono Request to a Gleam HTTP Request
  * @param {Request} req - The Request object
  * @returns {Promise<Object>} Gleam HTTP Request object
  */
 export async function toGleamRequest(req) {
   const url = new URL(req.url);
-  const body = await req.text();
 
-  // Convert headers to Gleam List using List.fromArray
-  const headersArray = Array.from(req.headers.entries());
-  const headers = List.fromArray(headersArray);
+  // Optimization: Skip body reading for GET/HEAD/OPTIONS/TRACE requests
+  const body = shouldReadBody(req.method) ? await req.text() : "";
+
+  // Optimization: Use spread operator for more efficient header conversion
+  const headers = List.fromArray([...req.headers]);
 
   return {
     method: req.method.toUpperCase(),
@@ -29,23 +41,24 @@ export async function toGleamRequest(req) {
 /**
  * Converts a Gleam HTTP Response to a Node.js Response
  * @param {Object} resp - The Gleam HTTP Response object
- * @returns {Promise<Response>} Node.js Response object
+ * @returns {Response} Node.js Response object
  */
 export function toNodeResponse(resp) {
   const headers = new Headers();
 
-  // Convert Gleam List to JavaScript array using toArray()
+  // Optimization: Use for...of instead of forEach for better performance
   if (resp.headers && resp.headers.toArray) {
     const headersList = resp.headers.toArray();
-    headersList.forEach(([key, value]) => {
+    for (const [key, value] of headersList) {
       headers.set(key, value);
-    });
+    }
   }
 
-  return Promise.resolve(new Response(resp.body, {
+  // Optimization: Return Response directly (no need for Promise.resolve)
+  return new Response(resp.body, {
     status: resp.status,
     headers: headers,
-  }));
+  });
 }
 
 export function serve(fetch, port, callback) {
