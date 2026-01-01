@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test-javascript:
-    name: Test JavaScript Target
+  test-javascript-node:
+    name: Test JavaScript Target (Node.js)
     runs-on: ubuntu-latest
 
     steps:
@@ -21,9 +21,9 @@ jobs:
           gleam-version: "1.12.0"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
-          node-version: "latest"
+          node-version: "lts/*"
 
       - name: Install dependencies
         run: gleam deps download
@@ -37,8 +37,62 @@ jobs:
       - name: Build (JavaScript target)
         run: gleam build --target javascript
 
-      - name: Run tests (JavaScript target)
-        run: gleam test --target javascript
+      - name: Run tests (Node.js runtime)
+        run: gleam test --target javascript --runtime node
+
+  test-javascript-deno:
+    name: Test JavaScript Target (Deno)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Gleam
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "26"
+          gleam-version: "1.12.0"
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: gleam deps download
+
+      - name: Build (JavaScript target)
+        run: gleam build --target javascript
+
+      - name: Run tests (Deno runtime)
+        run: gleam test --target javascript --runtime deno
+
+  test-javascript-bun:
+    name: Test JavaScript Target (Bun)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Gleam
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "26"
+          gleam-version: "1.12.0"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: gleam deps download
+
+      - name: Build (JavaScript target)
+        run: gleam build --target javascript
+
+      - name: Run tests (Bun runtime)
+        run: gleam test --target javascript --runtime bun
 
   test-erlang:
     name: Test Erlang Target
