@@ -7,6 +7,9 @@ import hinoto
 @target(javascript)
 import gleam/javascript/promise
 
+@target(javascript)
+import hinoto/body
+
 pub fn main() -> Nil {
   gleeunit.main()
 }
@@ -99,4 +102,84 @@ pub fn response_creation_test() {
   // Verify response structure
   original_response.status |> should.equal(200)
   original_response.body |> should.equal("Hello from hinoto!")
+}
+
+// Test default_response_body function (JavaScript target with Body type)
+@target(javascript)
+pub fn default_response_body_test() {
+  let response = hinoto.default_response_body()
+
+  // Verify response structure
+  response.status |> should.equal(200)
+
+  // Verify body is StringBody variant
+  case response.body {
+    body.StringBody(text) -> text |> should.equal("Hello from hinoto!")
+    _ -> panic as "Expected StringBody variant"
+  }
+}
+
+// Test Body type handler (JavaScript target)
+@target(javascript)
+pub fn body_type_handler_test() {
+  let req = request.new() |> request.set_body(body.StringBody("test body"))
+  let resp = hinoto.default_response_body()
+  let hinoto_instance =
+    hinoto.Hinoto(request: req, response: resp, context: Nil)
+
+  let result_promise =
+    hinoto_instance
+    |> hinoto.handle(fn(req) {
+      // Verify request body is StringBody
+      case req.body {
+        body.StringBody(text) ->
+          promise.resolve(
+            response.new(200)
+            |> response.set_body(body.StringBody("Received: " <> text)),
+          )
+        _ -> panic as "Expected StringBody variant"
+      }
+    })
+
+  use result <- promise.await(result_promise)
+
+  // Verify response
+  result.response.status |> should.equal(200)
+  case result.response.body {
+    body.StringBody(text) -> text |> should.equal("Received: test body")
+    _ -> panic as "Expected StringBody variant"
+  }
+  promise.resolve(Nil)
+}
+
+// Test EmptyBody handling (JavaScript target)
+@target(javascript)
+pub fn empty_body_handler_test() {
+  let req = request.new() |> request.set_body(body.EmptyBody)
+  let resp = hinoto.default_response_body()
+  let hinoto_instance =
+    hinoto.Hinoto(request: req, response: resp, context: Nil)
+
+  let result_promise =
+    hinoto_instance
+    |> hinoto.handle(fn(req) {
+      // Verify request body is EmptyBody
+      case req.body {
+        body.EmptyBody ->
+          promise.resolve(
+            response.new(204) |> response.set_body(body.EmptyBody),
+          )
+        _ -> panic as "Expected EmptyBody variant"
+      }
+    })
+
+  use result <- promise.await(result_promise)
+
+  // Verify response
+  result.response.status |> should.equal(204)
+  case result.response.body {
+    body.EmptyBody -> Nil
+    _ -> panic as "Expected EmptyBody variant"
+  }
+  promise.resolve(Nil)
 }
