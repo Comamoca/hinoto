@@ -11,7 +11,7 @@ import gleeunit/should
 import gleam/javascript/promise
 
 @target(javascript)
-import hinoto/body
+import hinoto/body as body_js
 
 pub fn main() {
   gleeunit.main()
@@ -20,9 +20,9 @@ pub fn main() {
 // Test reading text from StringBody (JavaScript target)
 @target(javascript)
 pub fn read_text_from_string_body_test() {
-  let string_body = body.StringBody("Hello, World!")
+  let string_body = body_js.StringBody("Hello, World!")
 
-  let result_promise = body.read_text(string_body)
+  let result_promise = body_js.read_text(string_body)
 
   use result <- promise.await(result_promise)
 
@@ -37,9 +37,9 @@ pub fn read_text_from_string_body_test() {
 // Test reading text from EmptyBody (JavaScript target)
 @target(javascript)
 pub fn read_text_from_empty_body_test() {
-  let empty_body = body.EmptyBody
+  let empty_body = body_js.EmptyBody
 
-  let result_promise = body.read_text(empty_body)
+  let result_promise = body_js.read_text(empty_body)
 
   use result <- promise.await(result_promise)
 
@@ -55,9 +55,9 @@ pub fn read_text_from_empty_body_test() {
 @target(javascript)
 pub fn read_bits_from_bitarray_body_test() {
   let test_bits = <<72, 101, 108, 108, 111>>
-  let bitarray_body = body.BitArrayBody(test_bits)
+  let bitarray_body = body_js.BitArrayBody(test_bits)
 
-  let result_promise = body.read_bits(bitarray_body)
+  let result_promise = body_js.read_bits(bitarray_body)
 
   use result <- promise.await(result_promise)
 
@@ -72,9 +72,9 @@ pub fn read_bits_from_bitarray_body_test() {
 // Test reading bits from EmptyBody (JavaScript target)
 @target(javascript)
 pub fn read_bits_from_empty_body_test() {
-  let empty_body = body.EmptyBody
+  let empty_body = body_js.EmptyBody
 
-  let result_promise = body.read_bits(empty_body)
+  let result_promise = body_js.read_bits(empty_body)
 
   use result <- promise.await(result_promise)
 
@@ -89,9 +89,9 @@ pub fn read_bits_from_empty_body_test() {
 // Test reading JSON from StringBody (JavaScript target)
 @target(javascript)
 pub fn read_json_from_string_body_test() {
-  let json_string = body.StringBody("{\"name\":\"test\",\"value\":123}")
+  let json_string = body_js.StringBody("{\"name\":\"test\",\"value\":123}")
 
-  let result_promise = body.read_json(json_string)
+  let result_promise = body_js.read_json(json_string)
 
   use result <- promise.await(result_promise)
 
@@ -110,15 +110,15 @@ pub fn read_json_from_string_body_test() {
 // Test reading invalid JSON from StringBody (JavaScript target)
 @target(javascript)
 pub fn read_invalid_json_from_string_body_test() {
-  let invalid_json = body.StringBody("not valid json{")
+  let invalid_json = body_js.StringBody("not valid json{")
 
-  let result_promise = body.read_json(invalid_json)
+  let result_promise = body_js.read_json(invalid_json)
 
   use result <- promise.await(result_promise)
 
   case result {
     Ok(_) -> panic as "Expected Error when parsing invalid JSON"
-    Error(body.ParseError(_msg)) -> {
+    Error(body_js.ParseError(_msg)) -> {
       // Expected ParseError
       Nil
     }
@@ -131,15 +131,15 @@ pub fn read_invalid_json_from_string_body_test() {
 // Test reading JSON from EmptyBody (JavaScript target)
 @target(javascript)
 pub fn read_json_from_empty_body_test() {
-  let empty_body = body.EmptyBody
+  let empty_body = body_js.EmptyBody
 
-  let result_promise = body.read_json(empty_body)
+  let result_promise = body_js.read_json(empty_body)
 
   use result <- promise.await(result_promise)
 
   case result {
     Ok(_) -> panic as "Expected Error when reading JSON from EmptyBody"
-    Error(body.ParseError(_msg)) -> {
+    Error(body_js.ParseError(_msg)) -> {
       // Expected ParseError
       Nil
     }
@@ -149,11 +149,12 @@ pub fn read_json_from_empty_body_test() {
   promise.resolve(Nil)
 }
 
-// Test Body type variants exist (all targets)
+// Test Body type variants exist (JavaScript target)
+@target(javascript)
 pub fn body_variants_test() {
   // Just verify we can construct different Body variants
-  let _string_body = body.StringBody("test")
-  let _empty_body = body.EmptyBody
+  let _string_body = body_js.StringBody("test")
+  let _empty_body = body_js.EmptyBody
 
   // This test just verifies the types compile correctly
   Nil |> should.equal(Nil)
