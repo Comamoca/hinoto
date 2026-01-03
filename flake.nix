@@ -8,6 +8,7 @@
     devenv.url = "github:cachix/devenv";
     nix-gleam.url = "github:arnarg/nix-gleam";
     gleam-overlay.url = "github:Comamoca/gleam-overlay";
+    version-lsp.url = "github:skanehira/version-lsp";
   };
 
   outputs =
@@ -83,6 +84,7 @@
 	    let
               packages = with pkgs; [
                 nil
+                inputs.version-lsp.packages.${system}.default
                 beam28Packages.rebar3
                 wrangler
 		mise
