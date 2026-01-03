@@ -3,7 +3,6 @@
 /// These tests verify the Body type and its reading functions.
 /// Note: Some tests require a JavaScript runtime and cannot be fully tested
 /// without actual Request objects from a browser or runtime environment.
-
 import gleeunit
 import gleeunit/should
 
@@ -45,7 +44,8 @@ pub fn read_text_from_empty_body_test() {
 
   case result {
     Ok(text) -> text |> should.equal("")
-    Error(_) -> panic as "Expected Ok with empty string when reading from EmptyBody"
+    Error(_) ->
+      panic as "Expected Ok with empty string when reading from EmptyBody"
   }
 
   promise.resolve(Nil)
@@ -80,7 +80,8 @@ pub fn read_bits_from_empty_body_test() {
 
   case result {
     Ok(bits) -> bits |> should.equal(<<>>)
-    Error(_) -> panic as "Expected Ok with empty BitArray when reading from EmptyBody"
+    Error(_) ->
+      panic as "Expected Ok with empty BitArray when reading from EmptyBody"
   }
 
   promise.resolve(Nil)
@@ -101,7 +102,8 @@ pub fn read_json_from_string_body_test() {
       // without dynamic decoders, but at least it didn't error
       Nil
     }
-    Error(_) -> panic as "Expected Ok result when reading valid JSON from StringBody"
+    Error(_) ->
+      panic as "Expected Ok result when reading valid JSON from StringBody"
   }
 
   promise.resolve(Nil)
@@ -159,7 +161,6 @@ pub fn body_variants_test() {
   // This test just verifies the types compile correctly
   Nil |> should.equal(Nil)
 }
-
 // Note: Tests for RequestBody variant would require actual JavaScript Request objects
 // from a runtime environment (browser, Node.js, Deno, etc.), which are not available
 // in the test environment. The FFI implementation should be tested through integration

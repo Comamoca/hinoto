@@ -1,9 +1,8 @@
+@target(javascript)
 /// Body types for HTTP Request/Response
 ///
 /// This module provides types representing various body formats supported by JavaScript runtimes.
 /// Body types support lazy evaluation - the actual body content is only read when explicitly requested.
-
-@target(javascript)
 import gleam/javascript/promise.{type Promise}
 
 @target(javascript)

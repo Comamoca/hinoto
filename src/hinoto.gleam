@@ -124,6 +124,7 @@ pub fn set_context(
   Hinoto(request: hinoto.request, response: hinoto.response, context: context)
 }
 
+@target(javascript)
 /// Applies a handler function to the request and updates the response.
 ///
 /// This is a convenience function that takes a handler which processes
@@ -174,7 +175,6 @@ pub fn set_context(
 ///   |> response.set_body("Processed!")
 /// })
 /// ```
-@target(javascript)
 pub fn handle(
   hinoto: Hinoto(context, body),
   handler: fn(Request(body)) -> Promise(Response(body)),
