@@ -25,7 +25,7 @@
         inputs.git-hooks-nix.flakeModule
         inputs.devenv.flakeModule
       ];
-      systems = import inputs.systems; 
+      systems = import inputs.systems;
 
       perSystem =
         {
@@ -57,6 +57,10 @@
             projectRootFile = "flake.nix";
             programs = {
               nixfmt.enable = true;
+              gleam = {
+                enable = true;
+                package = pkgs.gleam.bin.latest;
+              };
             };
 
             settings.formatter = { };
@@ -81,13 +85,13 @@
 
           devenv.shells =
 
-	    let
+            let
               packages = with pkgs; [
                 nil
                 inputs.version-lsp.packages.${system}.default
                 beam28Packages.rebar3
                 wrangler
-		mise
+                mise
               ];
 
               languages = {
@@ -100,7 +104,7 @@
                 };
                 javascript = {
                   enable = true;
-		  bun.enable = true;
+                  bun.enable = true;
                 };
                 deno = {
                   enable = true;
@@ -108,12 +112,12 @@
               };
 
               enterShell = '''';
-	    in
-	    {
-            default = {
-	      inherit packages languages enterShell;
+            in
+            {
+              default = {
+                inherit packages languages enterShell;
+              };
             };
-          };
         };
     };
 }
