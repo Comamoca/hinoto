@@ -1,14 +1,15 @@
 {
+  description = "A basic flake to with Gleam language";
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixpkgs-unstable";
     treefmt-nix.url = "github:numtide/treefmt-nix";
     flake-parts.url = "github:hercules-ci/flake-parts";
     systems.url = "github:nix-systems/default";
     git-hooks-nix.url = "github:cachix/git-hooks.nix";
-    devenv.url = "github:cachix/devenv";
-    nix-gleam.url = "github:arnarg/nix-gleam";
     gleam-overlay.url = "github:Comamoca/gleam-overlay";
-    version-lsp.url = "github:skanehira/version-lsp";
+    process-compose-flake.url = "github:Platonic-Systems/process-compose-flake";
+    services-flake.url = "github:juspay/services-flake";
   };
 
   outputs =
@@ -23,7 +24,7 @@
       imports = [
         inputs.treefmt-nix.flakeModule
         inputs.git-hooks-nix.flakeModule
-        inputs.devenv.flakeModule
+        inputs.process-compose-flake.flakeModule
       ];
       systems = import inputs.systems;
 
@@ -35,19 +36,37 @@
           ...
         }:
         let
-          git-secrets' = pkgs.writeShellApplication {
-            name = "git-secrets";
-            runtimeInputs = [ pkgs.git-secrets ];
-            text = ''
-              git secrets --scan
-            '';
+          stdenv = pkgs.stdenv;
+	  
+          app = pkgs.buildGleamApplication {
+            pname = "hello";
+            version = "1.0.0";
+            src = pkgs.lib.cleanSource ./.;
+            gleamNix = import ./gleam.nix { inherit (pkgs) lib; };
+            gleam = pkgs.gleam.bin.latest;
           };
+
+          erlangPackages = with pkgs.beamMinimal28Packages; [
+            erlang
+            rebar3
+
+            # elixir_1_19
+          ];
+
+          gleamPackages = with pkgs; [
+            gleam.bin.latest
+          ];
+
+          javaScriptPackages = with pkgs; [
+            node_24
+            deno
+            bun
+          ];
         in
         {
           _module.args.pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [
-              inputs.nix-gleam.overlays.default
               inputs.gleam-overlay.overlays.default
             ];
             config = { };
@@ -57,10 +76,10 @@
             projectRootFile = "flake.nix";
             programs = {
               nixfmt.enable = true;
-              gleam = {
-                enable = true;
-                package = pkgs.gleam.bin.latest;
-              };
+            };
+            gleam = {
+              enable = true;
+              package = pkgs.gleam.bin.latest;
             };
 
             settings.formatter = { };
@@ -71,53 +90,44 @@
             settings = {
               hooks = {
                 treefmt.enable = true;
-                ripsecrets.enable = true;
-                git-secrets = {
+                gitleaks = {
                   enable = true;
-                  name = "git-secrets";
-                  entry = "${git-secrets'}/bin/git-secrets";
+                  entry = "${pkgs.gitleaks}/bin/gitleaks protect --staged";
                   language = "system";
-                  types = [ "text" ];
                 };
+                gitlint.enable = true;
               };
             };
           };
 
-          devenv.shells =
+          process-compose."default-service" = {
+            imports = [
+              inputs.services-flake.processComposeModules.default
+            ];
 
-            let
-              packages = with pkgs; [
-                nil
-                inputs.version-lsp.packages.${system}.default
-                beam28Packages.rebar3
-                wrangler
-                mise
-              ];
-
-              languages = {
-                gleam = {
-                  enable = true;
-                  package = pkgs.gleam.bin.latest;
-                };
-                erlang = {
-                  enable = true;
-                };
-                javascript = {
-                  enable = true;
-                  bun.enable = true;
-                };
-                deno = {
-                  enable = true;
-                };
-              };
-
-              enterShell = '''';
-            in
-            {
-              default = {
-                inherit packages languages enterShell;
-              };
+            services = {
+              # redis."r1" = {
+              #   enable = true;
+              # };
             };
+          };
+
+          devShells.default = pkgs.mkShell {
+            # To start the service, please run: nix run .#default-service
+            inputsFrom = [
+              config.process-compose."default-service".services.outputs.devShell
+            ];
+
+            packages = with pkgs; [
+	      nixd 
+
+              wrangler
+              mise
+            ] ++ erlangPackages
+              ++ gleamPackages ;
+          };
+
+	  packages.default = app;
         };
     };
 }
