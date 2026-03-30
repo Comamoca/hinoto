@@ -115,7 +115,7 @@ jobs:
         with:
           otp-version: "> 0"
           gleam-version: "> 0"
-          rebar3-version: "> 0"
+          rebar3-version: "3.24.0"
 
       - name: Install dependencies
         run: gleam deps download
