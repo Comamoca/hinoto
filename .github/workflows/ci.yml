@@ -17,8 +17,8 @@ jobs:
       - name: Setup Gleam
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "26"
-          gleam-version: "1.12.0"
+          otp-version: "> 0"
+          gleam-version: "> 0"
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -53,8 +53,8 @@ jobs:
       - name: Setup Gleam
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "26"
-          gleam-version: "1.12.0"
+          otp-version: "> 0"
+          gleam-version: "> 0"
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -83,8 +83,8 @@ jobs:
       - name: Setup Gleam
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "26"
-          gleam-version: "1.12.0"
+          otp-version: "> 0"
+          gleam-version: "> 0"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -113,9 +113,9 @@ jobs:
       - name: Setup Gleam
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "26"
-          gleam-version: "1.12.0"
-          rebar3-version: "latest"
+          otp-version: "> 0"
+          gleam-version: "> 0"
+          rebar3-version: "> 0"
 
       - name: Install dependencies
         run: gleam deps download
