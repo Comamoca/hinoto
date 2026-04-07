@@ -3,4 +3,7 @@
   "extends": [
     "config:recommended"
   ]
+  "matchUpdateTypes": ["patch"],
+  "automerge": true,
+  "platformAutomerge": true,
 }
