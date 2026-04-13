@@ -5,8 +5,9 @@
   ],
   "packageRules": [
     {
-      "matchUpdateTypes": ["patch"],
-      "automerge": true
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "minimumReleaseAge": "7 days"
     }
   ],
   "platformAutomerge": true
