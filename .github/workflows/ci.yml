@@ -14,34 +14,26 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Gleam
-        uses: erlef/setup-beam@v1
+      - uses: cachix/install-nix-action@v31
         with:
-          otp-version: "> 0"
-          gleam-version: "> 0"
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "lts/*"
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install dependencies
-        run: gleam deps download
+        run: nix develop --command gleam deps download
 
       - name: Check code (JavaScript target)
-        run: gleam check --target javascript
+        run: nix develop --command gleam check --target javascript
 
       - name: Check formatting
-        run: gleam format --check
+        run: nix develop --command gleam format --check
 
       - name: Build (JavaScript target)
-        run: gleam build --target javascript
+        run: nix develop --command gleam build --target javascript
 
       - name: Run tests (Node.js runtime)
-        run: gleam test --target javascript --runtime node
-
-      - name: Check formatting
-        run: gleam format --check
+        run: nix develop --command gleam test --target javascript --runtime node
 
   test-javascript-deno:
     name: Test JavaScript Target (Deno)
@@ -50,28 +42,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Gleam
-        uses: erlef/setup-beam@v1
+      - uses: cachix/install-nix-action@v31
         with:
-          otp-version: "> 0"
-          gleam-version: "> 0"
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install dependencies
-        run: gleam deps download
+        run: nix develop --command gleam deps download
 
       - name: Build (JavaScript target)
-        run: gleam build --target javascript
+        run: nix develop --command gleam build --target javascript
 
       - name: Run tests (Deno runtime)
-        run: gleam test --target javascript --runtime deno
-
-      - name: Check formatting
-        run: gleam format --check
+        run: nix develop --command gleam test --target javascript --runtime deno
 
   test-javascript-bun:
     name: Test JavaScript Target (Bun)
@@ -80,28 +64,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Gleam
-        uses: erlef/setup-beam@v1
+      - uses: cachix/install-nix-action@v31
         with:
-          otp-version: "> 0"
-          gleam-version: "> 0"
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install dependencies
-        run: gleam deps download
+        run: nix develop --command gleam deps download
 
       - name: Build (JavaScript target)
-        run: gleam build --target javascript
+        run: nix develop --command gleam build --target javascript
 
       - name: Run tests (Bun runtime)
-        run: gleam test --target javascript --runtime bun
-
-      - name: Check formatting
-        run: gleam format --check
+        run: nix develop --command gleam test --target javascript --runtime bun
 
   test-erlang:
     name: Test Erlang Target
@@ -110,21 +86,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Gleam
-        uses: erlef/setup-beam@v1
+      - uses: cachix/install-nix-action@v31
         with:
-          otp-version: "> 0"
-          gleam-version: "> 0"
-          rebar3-version: "3.24.0"
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install dependencies
-        run: gleam deps download
+        run: nix develop --command gleam deps download
 
       - name: Build (Erlang target)
-        run: gleam build --target erlang
+        run: nix develop --command gleam build --target erlang
 
       - name: Run tests (Erlang target)
-        run: gleam test --target erlang
+        run: nix develop --command gleam test --target erlang
 
       - name: Check formatting
-        run: gleam format --check
+        run: nix develop --command gleam format --check

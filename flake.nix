@@ -58,7 +58,7 @@
           ];
 
           javaScriptPackages = with pkgs; [
-            node_24
+            nodejs_24
             deno
             bun
           ];
@@ -124,7 +124,8 @@
               wrangler
               mise
             ] ++ erlangPackages
-              ++ gleamPackages ;
+              ++ gleamPackages
+              ++ javaScriptPackages;
           };
 
 	  packages.default = app;
