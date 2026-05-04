@@ -124,7 +124,8 @@
               wrangler
               mise
             ] ++ erlangPackages
-              ++ gleamPackages ;
+              ++ gleamPackages
+              ++ javaScriptPackages;
           };
 
 	  packages.default = app;
