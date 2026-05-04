@@ -4,6 +4,18 @@
 
 import { List } from "../../../prelude.mjs";
 import {
+  Get,
+  Post,
+  Put,
+  Delete,
+  Head,
+  Options,
+  Patch,
+  Trace,
+  Connect,
+  Other,
+} from "../../../gleam_http/gleam/http.mjs";
+import {
   RequestBody,
   StringBody,
   BitArrayBody,
@@ -16,6 +28,26 @@ import {
   URLSearchParamsBody,
   EmptyBody
 } from "../body.mjs";
+
+/**
+ * Converts an HTTP method string to the corresponding Gleam http.Method type.
+ * @param {string} method - The HTTP method string (e.g. "GET")
+ * @returns {Object} Gleam http.Method variant
+ */
+function parseMethod(method) {
+  switch (method.toUpperCase()) {
+    case "GET":     return new Get();
+    case "POST":    return new Post();
+    case "PUT":     return new Put();
+    case "DELETE":  return new Delete();
+    case "HEAD":    return new Head();
+    case "OPTIONS": return new Options();
+    case "PATCH":   return new Patch();
+    case "TRACE":   return new Trace();
+    case "CONNECT": return new Connect();
+    default:        return new Other(method);
+  }
+}
 
 /**
  * Converts a Cloudflare Workers Request to a Gleam HTTP Request
@@ -35,7 +67,7 @@ export function toGleamRequest(req) {
   const headers = List.fromArray([...req.headers]);
 
   return {
-    method: req.method.toUpperCase(),
+    method: parseMethod(req.method),
     headers: headers,
     body: body,
     scheme: url.protocol.replace(':', ''),

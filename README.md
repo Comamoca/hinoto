@@ -80,11 +80,12 @@ import gleam/http/response
 import gleam/javascript/promise.{type Promise}
 import gleam/string
 import hinoto.{type Hinoto}
+import hinoto/body.{type Body, StringBody}
 import hinoto/runtime/workers.{type WorkersContext}
 
 pub fn main() {
-  workers.serve(fn(hinoto: Hinoto(WorkersContext, String)) -> Promise(
-    Hinoto(WorkersContext, String),
+  workers.serve(fn(hinoto: Hinoto(WorkersContext, Body)) -> Promise(
+    Hinoto(WorkersContext, Body),
   ) {
     use hinoto <- promise.await(
       hinoto
@@ -98,20 +99,22 @@ pub fn handler(req) {
   case request.path_segments(req) {
     [] ->
       create_response(200, "<h1>Hello, Hinoto with Cloudflare Workers!</h1>")
+    ["greet", name] ->
+      create_response(200, string.concat(["Hello! ", name, "!"]))
     _ -> create_response(404, "<h1>Not Found</h1>")
   }
   |> promise.resolve
 }
 
-pub fn create_response(status: Int, html: String) {
+pub fn create_response(status: Int, html: String) -> Response(Body) {
   response.new(status)
-  |> response.set_body(html)
+  |> response.set_body(StringBody(html))
   |> response.set_header("content-type", "text/html")
 }
 ```
 
 
-> **Note**: v2.0.0 introduces Promise-based async handlers for JavaScript targets. See the [Migration Guide](#-migration-from-v1x-to-v20) below for upgrading from v1.x.
+> **Note**: v2.0.0 introduces Promise-based async handlers for JavaScript targets.
 
 ## ⬇️ Install
 
@@ -161,13 +164,14 @@ Each runtime uses an optimal body type for its environment:
 |---------|-----------|-------------|
 | **Mist (Erlang)** | `Connection` | Native streaming body support for efficient handling of large uploads |
 | **Node.js** | `String` | String-based bodies via Hinoto abstraction |
-| **Deno** | `JsRequest` | Runtime-specific type handled via FFI |
-| **Bun** | `JsRequest` | Runtime-specific type handled via FFI |
-| **Cloudflare Workers** | `String` | String-based bodies via Hinoto abstraction |
+| **Deno** | `String` | String-based bodies via Hinoto abstraction |
+| **Bun** | `String` | String-based bodies via Hinoto abstraction |
+| **Cloudflare Workers** | `Body` | Flexible MDN-compliant body type for lazy reading |
 
 **Why different types?**
 - **Erlang/Mist**: Uses `Connection` to support streaming request bodies, enabling efficient handling of large file uploads and chunked data
-- **JavaScript runtimes**: Use `String` or runtime-specific types for simpler, stateless request handling
+- **Node.js / Deno / Bun**: Use `String` for simpler, stateless request handling
+- **Cloudflare Workers**: Use `Body` (flexible MDN-compliant body type) for lazy reading of request bodies via `body.read_text()`, `body.read_json()`, etc.
 
 ## 📜 License
 
