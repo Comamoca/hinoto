@@ -1,0 +1,94 @@
+language: ja-JP
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  changed_files_summary: true
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    ignore_title_keywords:
+      - "WIP"
+      - "wip"
+    ignore_usernames:
+      - "renovate"
+      - "renovate[bot]"
+    base_branches:
+      - main
+      - dev
+
+  path_filters:
+    - "!build/**"
+    - "!_build/**"
+    - "!**/manifest.toml"
+    - "!**/*.lock"
+
+  path_instructions:
+    # FFIファイル: Gleam型システムとのブリッジ部分 — 型変換の正確さを重点レビュー
+    - path: "src/hinoto/runtime/ffi.*.mjs"
+      instructions: |
+        このファイルはGleamとJavaScriptランタイムのFFIブリッジです。以下を重点的に確認してください。
+
+        ## 必須チェック項目
+
+        ### 1. HTTP Methodの型変換 (Issue #22)
+        `toGleamRequest` 関数内で `method` フィールドに文字列を直接代入していないか確認してください。
+        Gleamの `http.Method` 型はJavaScriptでは `Get`, `Post` などのクラスインスタンスであり、文字列ではありません。
+
+        **NG パターン（バグ）:**
+        ```js
+        method: req.method.toUpperCase()  // 文字列を返す → Gleam側でpattern matchが壊れる
+        ```
+
+        **OK パターン:**
+        ```js
+        // parse_method を使ってMethodインスタンスに変換する
+        method: parseMethod(req.method)
+        ```
+
+        ### 2. Gleam型インスタンスの正確な生成
+        Gleamのカスタム型（`$CustomType` のサブクラス）を返す箇所では、必ず `new ClassName()` でインスタンス化されているか確認してください。
+
+        ### 3. リストの変換
+        Gleamの `List` 型はJavaScriptの配列と異なります。`List.fromArray()` を使っているか確認してください。
+
+        ### 4. Option型の変換
+        `undefined` / `null` をそのまま返していないか確認してください。Gleamの `Option` 型は `Some(x)` または `None` で表現されます。
+
+    # Gleamソースファイル
+    - path: "src/**/*.gleam"
+      instructions: |
+        Gleamのコードレビューです。以下を確認してください。
+
+        - `@external` アノテーションが付いた関数の型シグネチャが、対応するFFIの実装と一致しているか
+        - FFIから返される値の型が正しいか（特に `http.Method`, `gleam/http/request.Request` など）
+        - `@target(javascript)` と `@target(erlang)` の分岐が適切か
+
+    # exampleディレクトリ
+    - path: "example/**/*.gleam"
+      instructions: |
+        サンプルコードのレビューです。
+
+        - `workers.serve` の引数の型が `Hinoto(WorkersContext, Body)` になっているか（`String` は誤り）
+        - `response.set_body` に渡す値が正しい `Body` 型か（`body.StringBody(...)` を使っているか）
+        - 型アノテーションが省略されている場合、型推論が正しく機能しているか
+
+    # テストファイル
+    - path: "test/**/*.gleam"
+      instructions: |
+        テストコードのレビューです。
+
+        - FFIの型変換をテストするケースが含まれているか
+        - 各HTTPメソッド（GET, POST, PUT, DELETE等）のパターンマッチが正しく動作することを検証しているか
+
+ast_grep_instructions:
+  rules_dir: .coderabbit/rules
+
+chat:
+  auto_reply: true
