@@ -58,7 +58,7 @@
           ];
 
           javaScriptPackages = with pkgs; [
-            node_24
+            nodejs_24
             deno
             bun
           ];
