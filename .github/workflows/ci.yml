@@ -20,12 +20,6 @@ jobs:
 
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Cache Gleam packages
-        uses: actions/cache@v5
-        with:
-          path: build/packages
-          key: ${{ hashFiles('manifest.toml') }}
-
       - name: Install dependencies
         run: nix develop --command gleam deps download
 
@@ -54,12 +48,6 @@ jobs:
 
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Cache Gleam packages
-        uses: actions/cache@v5
-        with:
-          path: build/packages
-          key: ${{ hashFiles('manifest.toml') }}
-
       - name: Install dependencies
         run: nix develop --command gleam deps download
 
@@ -82,12 +70,6 @@ jobs:
 
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Cache Gleam packages
-        uses: actions/cache@v5
-        with:
-          path: build/packages
-          key: ${{ hashFiles('manifest.toml') }}
-
       - name: Install dependencies
         run: nix develop --command gleam deps download
 
@@ -109,12 +91,6 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: DeterminateSystems/magic-nix-cache-action@main
-
-      - name: Cache Gleam packages
-        uses: actions/cache@v5
-        with:
-          path: build/packages
-          key: ${{ hashFiles('manifest.toml') }}
 
       - name: Install dependencies
         run: nix develop --command gleam deps download
