@@ -37,7 +37,7 @@
         }:
         let
           stdenv = pkgs.stdenv;
-	  
+
           app = pkgs.buildGleamApplication {
             pname = "hello";
             version = "1.0.0";
@@ -76,12 +76,11 @@
             projectRootFile = "flake.nix";
             programs = {
               nixfmt.enable = true;
+              gleam = {
+                enable = true;
+                package = pkgs.gleam.bin.latest;
+              };
             };
-            gleam = {
-              enable = true;
-              package = pkgs.gleam.bin.latest;
-            };
-
             settings.formatter = { };
           };
 
@@ -118,17 +117,20 @@
               config.process-compose."default-service".services.outputs.devShell
             ];
 
-            packages = with pkgs; [
-	      nixd 
+            packages =
+              with pkgs;
+              [
+                nixd
 
-              wrangler
-              mise
-            ] ++ erlangPackages
+                wrangler
+                mise
+              ]
+              ++ erlangPackages
               ++ gleamPackages
               ++ javaScriptPackages;
           };
 
-	  packages.default = app;
+          packages.default = app;
         };
     };
 }
