@@ -1,4 +1,5 @@
 import { List } from "../../../prelude.mjs";
+import { Some, None } from "../../../gleam_stdlib/gleam/option.mjs";
 import {
   Get,
   Post,
@@ -58,9 +59,9 @@ export async function toGleamRequest(req) {
     body: body,
     scheme: url.protocol.replace(':', ''),
     host: url.hostname,
-    port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
+    port: url.port ? new Some(parseInt(url.port)) : new None(),
     path: url.pathname,
-    query: url.search ? url.search.substring(1) : undefined,
+    query: url.search ? new Some(url.search.substring(1)) : new None(),
   };
 }
 

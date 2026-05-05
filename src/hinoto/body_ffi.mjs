@@ -5,7 +5,7 @@
  * and convert them to appropriate Gleam types.
  */
 
-import { Ok, Error } from "../gleam.mjs";
+import { Result$Ok, Result$Error, BitArray$BitArray } from "../gleam.mjs";
 import {
   AlreadyRead,
   ParseError,
@@ -16,7 +16,6 @@ import {
   BitArrayBody,
   EmptyBody
 } from "./body.mjs";
-import { BitArray } from "../gleam.mjs";
 
 /**
  * Reads the body content as text (String)
@@ -27,12 +26,12 @@ import { BitArray } from "../gleam.mjs";
 export async function readText(body) {
   // If body is already a StringBody, return it directly
   if (body instanceof StringBody) {
-    return new Ok(body[0]);
+    return Result$Ok(body[0]);
   }
 
   // If body is EmptyBody, return empty string
   if (body instanceof EmptyBody) {
-    return new Ok("");
+    return Result$Ok("");
   }
 
   // If body is RequestBody, read from the Request object
@@ -41,19 +40,19 @@ export async function readText(body) {
 
     // Check if body has already been used
     if (req.bodyUsed) {
-      return new Error(new AlreadyRead());
+      return Result$Error(new AlreadyRead());
     }
 
     try {
       const text = await req.text();
-      return new Ok(text);
+      return Result$Ok(text);
     } catch (e) {
-      return new Error(new ReadError(e.message));
+      return Result$Error(new ReadError(e.message));
     }
   }
 
   // Unsupported body type for text reading
-  return new Error(
+  return Result$Error(
     new UnsupportedBodyType(
       `Cannot read text from body type: ${body.constructor.name}`
     )
@@ -69,12 +68,12 @@ export async function readText(body) {
 export async function readBits(body) {
   // If body is already a BitArrayBody, return it directly
   if (body instanceof BitArrayBody) {
-    return new Ok(body[0]);
+    return Result$Ok(body[0]);
   }
 
   // If body is EmptyBody, return empty BitArray
   if (body instanceof EmptyBody) {
-    return new Ok(new BitArray(new Uint8Array(0)));
+    return Result$Ok(BitArray$BitArray(new Uint8Array(0)));
   }
 
   // If body is RequestBody, read from the Request object
@@ -83,20 +82,20 @@ export async function readBits(body) {
 
     // Check if body has already been used
     if (req.bodyUsed) {
-      return new Error(new AlreadyRead());
+      return Result$Error(new AlreadyRead());
     }
 
     try {
       const arrayBuffer = await req.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
-      return new Ok(new BitArray(uint8Array));
+      return Result$Ok(BitArray$BitArray(uint8Array));
     } catch (e) {
-      return new Error(new ReadError(e.message));
+      return Result$Error(new ReadError(e.message));
     }
   }
 
   // Unsupported body type for binary reading
-  return new Error(
+  return Result$Error(
     new UnsupportedBodyType(
       `Cannot read bits from body type: ${body.constructor.name}`
     )
@@ -112,7 +111,7 @@ export async function readBits(body) {
 export async function readJson(body) {
   // If body is EmptyBody, return error
   if (body instanceof EmptyBody) {
-    return new Error(new ParseError("Cannot parse JSON from empty body"));
+    return Result$Error(new ParseError("Cannot parse JSON from empty body"));
   }
 
   // If body is RequestBody, read from the Request object
@@ -121,18 +120,18 @@ export async function readJson(body) {
 
     // Check if body has already been used
     if (req.bodyUsed) {
-      return new Error(new AlreadyRead());
+      return Result$Error(new AlreadyRead());
     }
 
     try {
       const json = await req.json();
-      return new Ok(json);
+      return Result$Ok(json);
     } catch (e) {
       // JSON parsing error or read error
       if (e instanceof SyntaxError) {
-        return new Error(new ParseError(e.message));
+        return Result$Error(new ParseError(e.message));
       }
-      return new Error(new ReadError(e.message));
+      return Result$Error(new ReadError(e.message));
     }
   }
 
@@ -140,14 +139,14 @@ export async function readJson(body) {
   if (body instanceof StringBody) {
     try {
       const json = JSON.parse(body[0]);
-      return new Ok(json);
+      return Result$Ok(json);
     } catch (e) {
-      return new Error(new ParseError(e.message));
+      return Result$Error(new ParseError(e.message));
     }
   }
 
   // Unsupported body type for JSON reading
-  return new Error(
+  return Result$Error(
     new UnsupportedBodyType(
       `Cannot read JSON from body type: ${body.constructor.name}`
     )
