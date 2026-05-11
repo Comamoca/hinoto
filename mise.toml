@@ -1,6 +1,6 @@
 [tools]
 gleam = "latest"
 node = "latest"
-"npm:wrangler" = "4.85.0"
+"npm:wrangler" = "4.87.0"
 deno = "latest"
 bun = "latest"
