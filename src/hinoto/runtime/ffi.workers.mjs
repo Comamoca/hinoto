@@ -3,6 +3,7 @@
  */
 
 import { List } from "../../../prelude.mjs";
+import { Some, None } from "../../../gleam_stdlib/gleam/option.mjs";
 import {
   Get,
   Post,
@@ -74,7 +75,7 @@ export function toGleamRequest(req) {
     host: url.hostname,
     port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
     path: url.pathname,
-    query: url.search ? url.search.substring(1) : undefined,
+    query: url.search ? new Some(url.search.substring(1)) : new None(),
   };
 }
 
