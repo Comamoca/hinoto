@@ -1,9 +1,11 @@
-language: ja-JP
+language: en-US
 
 reviews:
   profile: assertive
   request_changes_workflow: false
   high_level_summary: true
+  high_level_summary_instructions: |
+    Always write the PR summary in English, regardless of the repository's primary language.
   poem: false
   review_status: true
   collapse_walkthrough: false
@@ -30,62 +32,62 @@ reviews:
     - "!**/*.lock"
 
   path_instructions:
-    # FFIファイル: Gleam型システムとのブリッジ部分 — 型変換の正確さを重点レビュー
+    # FFI files: bridge between Gleam type system and JavaScript runtime — focus on type conversion accuracy
     - path: "src/hinoto/runtime/ffi.*.mjs"
       instructions: |
-        このファイルはGleamとJavaScriptランタイムのFFIブリッジです。以下を重点的に確認してください。
+        This file is the FFI bridge between Gleam and the JavaScript runtime. Please focus on the following.
 
-        ## 必須チェック項目
+        ## Required Checks
 
-        ### 1. HTTP Methodの型変換 (Issue #22)
-        `toGleamRequest` 関数内で `method` フィールドに文字列を直接代入していないか確認してください。
-        Gleamの `http.Method` 型はJavaScriptでは `Get`, `Post` などのクラスインスタンスであり、文字列ではありません。
+        ### 1. HTTP Method type conversion (Issue #22)
+        Verify that the `method` field inside the `toGleamRequest` function is not assigned a raw string.
+        Gleam's `http.Method` type is represented as class instances like `Get`, `Post` in JavaScript — not strings.
 
-        **NG パターン（バグ）:**
+        **Bad pattern (bug):**
         ```js
-        method: req.method.toUpperCase()  // 文字列を返す → Gleam側でpattern matchが壊れる
+        method: req.method.toUpperCase()  // returns a string → breaks pattern matching on the Gleam side
         ```
 
-        **OK パターン:**
+        **Good pattern:**
         ```js
-        // parse_method を使ってMethodインスタンスに変換する
+        // Convert to a Method instance using parse_method
         method: parseMethod(req.method)
         ```
 
-        ### 2. Gleam型インスタンスの正確な生成
-        Gleamのカスタム型（`$CustomType` のサブクラス）を返す箇所では、必ず `new ClassName()` でインスタンス化されているか確認してください。
+        ### 2. Correct instantiation of Gleam types
+        Where a Gleam custom type (subclass of `$CustomType`) is returned, confirm it is always instantiated with `new ClassName()`.
 
-        ### 3. リストの変換
-        Gleamの `List` 型はJavaScriptの配列と異なります。`List.fromArray()` を使っているか確認してください。
+        ### 3. List conversion
+        Gleam's `List` type differs from JavaScript arrays. Confirm `List.fromArray()` is used.
 
-        ### 4. Option型の変換
-        `undefined` / `null` をそのまま返していないか確認してください。Gleamの `Option` 型は `Some(x)` または `None` で表現されます。
+        ### 4. Option type conversion
+        Confirm that `undefined` / `null` is not returned as-is. Gleam's `Option` type must be expressed as `Some(x)` or `None`.
 
-    # Gleamソースファイル
+    # Gleam source files
     - path: "src/**/*.gleam"
       instructions: |
-        Gleamのコードレビューです。以下を確認してください。
+        This is a Gleam code review. Please verify the following.
 
-        - `@external` アノテーションが付いた関数の型シグネチャが、対応するFFIの実装と一致しているか
-        - FFIから返される値の型が正しいか（特に `http.Method`, `gleam/http/request.Request` など）
-        - `@target(javascript)` と `@target(erlang)` の分岐が適切か
+        - The type signature of functions annotated with `@external` matches the corresponding FFI implementation.
+        - The types of values returned from FFI are correct (especially `http.Method`, `gleam/http/request.Request`, etc.).
+        - `@target(javascript)` and `@target(erlang)` branches are used appropriately.
 
-    # exampleディレクトリ
+    # example directory
     - path: "example/**/*.gleam"
       instructions: |
-        サンプルコードのレビューです。
+        This is a review of sample code.
 
-        - `workers.serve` の引数の型が `Hinoto(WorkersContext, Body)` になっているか（`String` は誤り）
-        - `response.set_body` に渡す値が正しい `Body` 型か（`body.StringBody(...)` を使っているか）
-        - 型アノテーションが省略されている場合、型推論が正しく機能しているか
+        - Confirm that the argument type of `workers.serve` is `Hinoto(WorkersContext, Body)` (not `String`).
+        - Confirm that the value passed to `response.set_body` is the correct `Body` type (using `body.StringBody(...)`).
+        - If type annotations are omitted, verify that type inference works correctly.
 
-    # テストファイル
+    # test files
     - path: "test/**/*.gleam"
       instructions: |
-        テストコードのレビューです。
+        This is a review of test code.
 
-        - FFIの型変換をテストするケースが含まれているか
-        - 各HTTPメソッド（GET, POST, PUT, DELETE等）のパターンマッチが正しく動作することを検証しているか
+        - Confirm that test cases covering FFI type conversions are included.
+        - Verify that pattern matching for each HTTP method (GET, POST, PUT, DELETE, etc.) works correctly.
 
 ast_grep_instructions:
   rules_dir: .coderabbit/rules
