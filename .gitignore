@@ -9,3 +9,4 @@ node_modules/
 .serena
 .devenv
 .direnv
+/.agent-shell/
