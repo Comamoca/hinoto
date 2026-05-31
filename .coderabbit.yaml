@@ -25,6 +25,11 @@ reviews:
       - main
       - dev
 
+  tools:
+    ast-grep:
+      rule_dirs:
+        - .coderabbit/rules
+
   path_filters:
     - "!build/**"
     - "!_build/**"
@@ -88,9 +93,6 @@ reviews:
 
         - Confirm that test cases covering FFI type conversions are included.
         - Verify that pattern matching for each HTTP method (GET, POST, PUT, DELETE, etc.) works correctly.
-
-ast_grep_instructions:
-  rules_dir: .coderabbit/rules
 
 chat:
   auto_reply: true
