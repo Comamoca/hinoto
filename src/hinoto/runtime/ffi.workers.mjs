@@ -31,7 +31,6 @@ import {
   EmptyBody
 } from "../body.mjs";
 
-
 /**
  * Converts a Cloudflare Workers Request to a Gleam HTTP Request
  * @param {Request} req - The Cloudflare Workers Request object
