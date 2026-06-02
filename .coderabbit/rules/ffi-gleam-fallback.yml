@@ -1,0 +1,50 @@
+rules:
+  # Verify use of @external + Gleam implementation body (fallback pattern)
+  - id: ffi-gleam-fallback-pattern
+    files:
+      - "src/**/*.gleam"
+    pattern: '@external'
+    message: |
+      Consider whether a Gleam implementation body is also needed alongside `@external`.
+
+      From the "Gleam fallbacks" pattern in the Gleam Externals guide:
+      > "It is possible for a function to have a Gleam implementation
+      >  and also an external implementation at the same time."
+
+      If there is no Gleam implementation alongside `@external`, the function can only be used
+      on the specified target. Consider these patterns:
+      1. **Fallback**: `@external(erlang, ...)` + Gleam implementation body → Erlang uses the optimized version,
+         JavaScript uses the Gleam implementation.
+      2. **Multi-target**: `@external(erlang, ...)` + `@external(javascript, ...)`
+         → External implementations for both targets.
+
+      Reference: https://gleam.run/documentation/externals/#gleam-fallbacks
+    severity: info
+    note: |
+      Fallback pattern example:
+        @external(erlang, "lists", "reverse")
+        pub fn reverse_list(list: List(element)) -> List(element) {
+          reverse_and_prepend(list, [])
+        }
+      → Erlang uses the `lists:reverse` external implementation; JavaScript uses the Gleam implementation.
+
+  # Check for optimization opportunities in Gleam-only functions
+  - id: ffi-gleam-fallback-optimization-opportunity
+    files:
+      - "src/**/*.gleam"
+    pattern: 'pub fn'
+    message: |
+      This function has only a Gleam implementation.
+
+      If a more efficient implementation is possible for a specific target,
+      consider the `@external` + Gleam implementation fallback pattern.
+
+      Example: If an equivalent function exists in Erlang's `lists` module,
+      using a BEAM-native implementation for the Erlang target may
+      improve performance.
+
+      Reference: https://gleam.run/documentation/externals/#gleam-fallbacks
+    severity: info
+    note: |
+      This rule is informational only. Apply it only when optimization is actually needed.
+      Most functions are well-served by a pure Gleam implementation.
