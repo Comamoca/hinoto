@@ -1,0 +1,72 @@
+rules:
+  # Check for @external functions missing type annotations
+  - id: ffi-gleam-external-no-type-annotation
+    files:
+      - "src/**/*.gleam"
+    pattern: '@external'
+    message: |
+      Functions with the `@external` attribute **require type annotations**.
+
+      From the Gleam Externals guide:
+      > "Type annotations are not optional for external functions,
+      >  they must always be written."
+
+      Without type annotations on `@external` functions, the Gleam compiler cannot perform type checking.
+      Also verify that the target, module, and function name in the `@external` attribute are correct.
+
+      Reference: https://gleam.run/documentation/externals/#defining-external-functions
+    severity: warning
+    note: |
+      Correct example:
+        @external(javascript, "./ffi.node.mjs", "toGleamRequest")
+        pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
+
+      Incorrect example (missing type annotation):
+        @external(javascript, "./ffi.node.mjs", "toGleamRequest")
+        pub fn to_gleam_request(req) ->  # Missing type annotation!
+
+  # Check for target mismatch in @external
+  - id: ffi-gleam-external-target-mismatch
+    files:
+      - "src/**/*.gleam"
+    pattern: '@external(javascript'
+    message: |
+      Verify that the path in `@external(javascript, ...)` is correct.
+
+      For JavaScript target @external:
+      - The module path should point to a `.mjs` file, relative to the `.gleam` file
+      - Example: `@external(javascript, "./ffi.node.mjs", "functionName")`
+      - The referenced `.mjs` file must actually exist and the specified function must be exported
+
+      FFI file naming convention: `ffi.{runtime}.mjs` (per runtime) or `{module}_ffi.mjs`
+
+      Reference: https://gleam.run/documentation/externals/#javascript-externals
+    severity: warning
+    note: |
+      When using special Node.js paths (node_modules):
+        @external(javascript, "has-flag", "hasFlag")
+      This references an npm package directly. Verify the package is correctly installed.
+
+  # Check consistency between @external paths and actual file structure
+  - id: ffi-gleam-external-path-consistency
+    files:
+      - "src/**/*.gleam"
+    pattern: '@external(javascript, "./'
+    message: |
+      Verify that the JS file path in @external matches the actual file structure.
+
+      Path resolution rules for Gleam @external:
+      - Relative path from the `.gleam` file
+      - Extension is usually `.mjs` (required by Node.js and similar runtimes)
+      - Example: `src/hinoto/runtime/node.gleam` → `./ffi.node.mjs`
+
+      Expected path mappings:
+      - `src/hinoto/runtime/node.gleam` → `./ffi.node.mjs`
+      - `src/hinoto/runtime/workers.gleam` → `./ffi.workers.mjs`
+      - `src/hinoto/body.gleam` → `./body_ffi.mjs`
+
+      Reference: https://gleam.run/documentation/externals/#javascript-externals
+    severity: warning
+    note: |
+      Pay special attention for runtimes (e.g. Node.js) where the `.mjs` extension is required.
+      Some runtimes will not import correctly without the `.mjs` extension.

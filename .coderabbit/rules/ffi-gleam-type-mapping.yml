@@ -1,0 +1,88 @@
+rules:
+  # Gleam's Result type should use Ok/Error constructors in JS
+  - id: ffi-gleam-result-plain-object
+    language: JavaScript
+    files:
+      - "src/**/ffi.*.mjs"
+      - "src/**/*_ffi.mjs"
+    rule:
+      pattern: |
+        return {
+          ...,
+          ok: $VAL,
+        };
+    message: |
+      A plain object like `{ ok: value }` is being returned.
+
+      Gleam's Result type must be constructed in JavaScript using `Result$Ok(value)` or
+      `new Ok(value)` (imported from `gleam.mjs`).
+      Plain objects are not recognized by Gleam's pattern matching.
+
+      Reference: https://gleam.run/documentation/externals/#result
+    severity: error
+    note: |
+      Fix example:
+        import { Ok } from "../gleam.mjs";
+        return new Ok(value);
+
+  # Detect mutation of JS arrays used as Tuples
+  - id: ffi-gleam-tuple-mutation
+    language: JavaScript
+    files:
+      - "src/**/ffi.*.mjs"
+      - "src/**/*_ffi.mjs"
+    rule:
+      pattern: $TUPLE.push($VAL)
+    message: |
+      A destructive mutation via `.push()` is being applied to an array that may be used as a Gleam Tuple.
+
+      Gleam Tuples are represented as arrays in JavaScript, but they are **immutable**.
+      Do not mutate them with `.push()` or `$arr[i] = val`.
+
+      Reference: https://gleam.run/documentation/externals/#tuples
+    severity: error
+    note: |
+      Instead of mutating the array, create a new one (e.g. `[...array, value]`).
+
+  # Detect direct access to Gleam custom type internals
+  - id: ffi-gleam-custom-type-direct-access
+    language: JavaScript
+    files:
+      - "src/**/ffi.*.mjs"
+      - "src/**/*_ffi.mjs"
+    rule:
+      pattern: $INSTANCE[$FIELD_INDEX]
+    message: |
+      A Gleam custom type instance is being accessed directly with a numeric index.
+
+      Gleam custom type fields must be accessed using the `TypeName$VariantName$fieldName()` function.
+      Numeric indices are an internal implementation detail and may change between Gleam versions.
+
+      Reference: https://gleam.run/documentation/externals/#custom-types
+    severity: warning
+    note: |
+      Fix example:
+        import { SchoolPerson$Student$name } from './school.mjs';
+        SchoolPerson$Student$name(student);
+
+  # Check if raw JS arrays are returned as List without List.fromArray()
+  - id: ffi-gleam-list-raw-array
+    language: JavaScript
+    files:
+      - "src/**/ffi.*.mjs"
+      - "src/**/*_ffi.mjs"
+    rule:
+      pattern: return [...]
+    message: |
+      Are you returning a raw JS array as a Gleam List?
+
+      Gleam's List must be constructed in JavaScript using `List$NonEmpty(elem, rest)` or
+      `List.fromArray(array)` (imported from prelude.mjs).
+      Returning a raw array will cause pattern matching to fail on the Gleam side.
+
+      Reference: https://gleam.run/documentation/externals/#list
+    severity: warning
+    note: |
+      Fix example:
+        import { List } from "../../../prelude.mjs";
+        List.fromArray([1, 2, 3]);

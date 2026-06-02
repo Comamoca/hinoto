@@ -1,0 +1,65 @@
+rules:
+  # Multi-target FFI: JavaScript-only with no Erlang
+  - id: ffi-gleam-multi-target-single-only
+    files:
+      - "src/**/*.gleam"
+    pattern: '@external(javascript, '
+    message: |
+      This function only has `@external(javascript, ...)` specified.
+
+      Gleam supports both Erlang and JavaScript targets.
+      If this function is used on both targets, `@external(erlang, ...)` must also be added.
+      Otherwise, a compile error will occur when building for the Erlang target.
+
+      Reference: https://gleam.run/documentation/externals/#multi-target-externals
+    severity: warning
+    note: |
+      Multi-target externals example:
+        @external(erlang, "lists", "reverse")
+        @external(javascript, "./project_ffi.mjs", "reverse_list")
+        pub fn reverse_list(list: List(element)) -> List(element)
+
+      Expected patterns:
+      - `src/hinoto/runtime/*.gleam`: Single target is OK since these are runtime-specific implementations
+      - `src/hinoto/body.gleam`: OK as JavaScript-only (`@target(javascript)`)
+      - Library core functions: Both target implementations are required
+
+  # Erlang-only @external with no JavaScript
+  - id: ffi-gleam-multi-target-erlang-only
+    files:
+      - "src/**/*.gleam"
+    pattern: '@external(erlang, '
+    message: |
+      This function only has `@external(erlang, ...)` specified.
+
+      If the function is also used on the JavaScript target, `@external(javascript, ...)` must be added.
+      Otherwise, a compile error will occur on a JavaScript build.
+
+      Reference: https://gleam.run/documentation/externals/#multi-target-externals
+    severity: warning
+    note: |
+      To support both targets:
+        @external(erlang, "lists", "reverse")
+        @external(javascript, "./project_ffi.mjs", "reverse_list")
+        pub fn reverse_list(list: List(element)) -> List(element)
+
+  # Verify @target(javascript) guard
+  - id: ffi-gleam-multi-target-annotation-validity
+    files:
+      - "src/**/*.gleam"
+    pattern: '@target(javascript)'
+    message: |
+      This code block is guarded with `@target(javascript)`.
+      This code will only be compiled for the JavaScript target.
+
+      Verify the following:
+      1. Is this guard intentional (is this a JavaScript-only feature)?
+      2. Does an equivalent implementation for Erlang exist separately?
+      3. Is an equivalent implementation guarded with `@target(erlang)` needed?
+
+      Reference: https://gleam.run/documentation/externals/#multi-target-externals
+    severity: info
+    note: |
+      Hinoto examples:
+      - `src/hinoto.gleam:9-14`: JS-only imports guarded with `@target(javascript)`
+      - `src/hinoto.gleam:178-192`: Both JS and Erlang `handle` functions
