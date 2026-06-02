@@ -41,7 +41,7 @@ export async function toGleamRequest(req) {
 
   return {
     method: (() => {
-      const result = parse_method(req.method);
+      const result = parse_method(req.method.toUpperCase());
       return result instanceof Ok ? result[0] : new Other(req.method);
     })(),
     headers: headers,
