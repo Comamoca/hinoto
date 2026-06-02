@@ -1,6 +1,19 @@
 import { serve as hono_serve } from "@hono/node-server";
-import { List } from "../../../prelude.mjs";
+import { List, Ok } from "../../../prelude.mjs";
 import { Some, None } from "../../../gleam_stdlib/gleam/option.mjs";
+import {
+  parse_method,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Head,
+  Options,
+  Patch,
+  Trace,
+  Connect,
+  Other,
+} from "../../../gleam_http/gleam/http.mjs";
 
 /**
  * Checks if the request body should be read based on HTTP method
@@ -28,7 +41,10 @@ export async function toGleamRequest(req) {
   const headers = List.fromArray([...req.headers]);
 
   return {
-    method: req.method.toUpperCase(),
+    method: (() => {
+      const result = parse_method(req.method);
+      return result instanceof Ok ? result[0] : new Other(req.method);
+    })(),
     headers: headers,
     body: body,
     scheme: url.protocol.replace(':', ''),
