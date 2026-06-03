@@ -2,8 +2,10 @@
  * FFI functions for Cloudflare Workers runtime
  */
 
-import { List } from "../../../prelude.mjs";
+import { List, Ok } from "../../../prelude.mjs";
+import { Some, None } from "../../../gleam_stdlib/gleam/option.mjs";
 import {
+  parse_method,
   Get,
   Post,
   Put,
@@ -30,26 +32,6 @@ import {
 } from "../body.mjs";
 
 /**
- * Converts an HTTP method string to the corresponding Gleam http.Method type.
- * @param {string} method - The HTTP method string (e.g. "GET")
- * @returns {Object} Gleam http.Method variant
- */
-function parseMethod(method) {
-  switch (method.toUpperCase()) {
-    case "GET":     return new Get();
-    case "POST":    return new Post();
-    case "PUT":     return new Put();
-    case "DELETE":  return new Delete();
-    case "HEAD":    return new Head();
-    case "OPTIONS": return new Options();
-    case "PATCH":   return new Patch();
-    case "TRACE":   return new Trace();
-    case "CONNECT": return new Connect();
-    default:        return new Other(method);
-  }
-}
-
-/**
  * Converts a Cloudflare Workers Request to a Gleam HTTP Request
  * @param {Request} req - The Cloudflare Workers Request object
  * @returns {Object} Gleam HTTP Request object
@@ -67,14 +49,17 @@ export function toGleamRequest(req) {
   const headers = List.fromArray([...req.headers]);
 
   return {
-    method: parseMethod(req.method),
+    method: (() => {
+      const result = parse_method(req.method);
+      return result instanceof Ok ? result[0] : new Other(req.method);
+    })(),
     headers: headers,
     body: body,
     scheme: url.protocol.replace(':', ''),
     host: url.hostname,
     port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
     path: url.pathname,
-    query: url.search ? url.search.substring(1) : undefined,
+    query: url.search ? new Some(url.search.substring(1)) : new None(),
   };
 }
 

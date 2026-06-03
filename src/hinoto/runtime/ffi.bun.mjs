@@ -1,4 +1,18 @@
-import { List } from "../../../prelude.mjs";
+import { List, Ok } from "../../../prelude.mjs";
+import { Some, None } from "../../../gleam_stdlib/gleam/option.mjs";
+import {
+  parse_method,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Head,
+  Options,
+  Patch,
+  Trace,
+  Connect,
+  Other,
+} from "../../../gleam_http/gleam/http.mjs";
 
 /**
  * Checks if the request body should be read based on HTTP method
@@ -26,14 +40,17 @@ export async function toGleamRequest(req) {
   const headers = List.fromArray([...req.headers]);
 
   return {
-    method: req.method.toUpperCase(),
+    method: (() => {
+      const result = parse_method(req.method);
+      return result instanceof Ok ? result[0] : new Other(req.method);
+    })(),
     headers: headers,
     body: body,
     scheme: url.protocol.replace(':', ''),
     host: url.hostname,
     port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
     path: url.pathname,
-    query: url.search ? url.search.substring(1) : undefined,
+    query: url.search ? new Some(url.search.substring(1)) : new None(),
   };
 }
 
