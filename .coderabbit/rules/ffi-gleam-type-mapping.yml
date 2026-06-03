@@ -49,21 +49,28 @@ rules:
     rule:
       pattern: $INSTANCE[$FIELD_INDEX]
     message: |
-      A Gleam custom type instance is being accessed directly with a numeric index.
+      A Gleam custom type instance may be accessed directly with a numeric index.
 
-      Gleam custom type fields must be accessed using the `TypeName$VariantName$fieldName()` function.
+      NOTE: This pattern is intentionally broad and will match arrays, maps, and other
+      bracket-access expressions. Verify that `$INSTANCE` is actually a Gleam custom type
+      before applying the fix. Common false positives: plain arrays, computed object keys.
+
+      Gleam custom type fields should be accessed using the `TypeName$VariantName$fieldName()` function.
       Numeric indices are an internal implementation detail and may change between Gleam versions.
 
       Reference: https://gleam.run/documentation/externals/#custom-types
     severity: warning
     note: |
-      Fix example:
+      Fix example (only when $INSTANCE is a Gleam custom type):
         import { SchoolPerson$Student$name } from './school.mjs';
         SchoolPerson$Student$name(student);
 
       Note: This rule may produce false positives for legitimate bracket accesses
       such as array[i], obj["key"], or items[0]. Dismiss matches that are not
       accessing Gleam custom type internals.
+
+      Exception: `result[0]` for unwrapping an `Ok` value is an accepted pattern
+      in FFI code where no accessor function is provided by gleam_http.
 
   # Check if raw JS arrays are returned as List without List.fromArray()
   - id: ffi-gleam-list-raw-array
@@ -74,16 +81,19 @@ rules:
     rule:
       pattern: "return [$$$]"
     message: |
-      Are you returning a raw JS array as a Gleam List?
+      If this function returns to Gleam code as a `List` type, a raw JS array cannot be used.
 
       Gleam's List must be constructed in JavaScript using `List$NonEmpty(elem, rest)` or
       `List.fromArray(array)` (imported from prelude.mjs).
       Returning a raw array will cause pattern matching to fail on the Gleam side.
 
+      This warning can be safely ignored when the return value is not exposed as a Gleam `List`
+      (e.g., internal helpers, JS tuples, or other JS-only arrays).
+
       Reference: https://gleam.run/documentation/externals/#list
     severity: warning
     note: |
-      Fix example:
+      Fix example (when the return type is a Gleam List):
         import { List } from "../../../prelude.mjs";
         List.fromArray([1, 2, 3]);
 

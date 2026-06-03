@@ -27,3 +27,25 @@ rules:
           reverse_and_prepend(list, [])
         }
       → Erlang uses the `lists:reverse` external implementation; JavaScript uses the Gleam implementation.
+
+  # Check for optimization opportunities in Gleam-only functions
+  - id: ffi-gleam-fallback-optimization-opportunity
+    files:
+      - "src/**/*_ffi.gleam"
+      - "src/**/ffi.gleam"
+    pattern: 'pub fn'
+    message: |
+      This is a blanket informational notice for FFI-adjacent files.
+      Not every `pub fn` needs optimization — dismiss this if the function is already well-served by Gleam.
+
+      If a more efficient implementation is possible for a specific target,
+      consider the `@external` + Gleam implementation fallback pattern.
+
+      Example: If an equivalent function exists in Erlang's `lists` module,
+      using a BEAM-native implementation for the Erlang target may improve performance.
+
+      Reference: https://gleam.run/documentation/externals/#gleam-fallbacks
+    severity: info
+    note: |
+      This rule is informational only. Apply it only when optimization is actually needed.
+      Most functions are well-served by a pure Gleam implementation.
