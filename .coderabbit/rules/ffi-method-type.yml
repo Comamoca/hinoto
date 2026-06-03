@@ -1,17 +1,20 @@
 rules:
-  # Issue #22: Detect patterns where req.method is returned as a raw string in FFI
+  # Issue #22: Detect patterns where req.method is returned as a string in FFI
   # Gleam's Method type is a JavaScript class instance, not a string
   - id: ffi-gleam-method-string-assignment
     language: JavaScript
+    files:
+      - "src/**/ffi.*.mjs"
+      - "src/**/*_ffi.mjs"
     rule:
       pattern: method: $METHOD.toUpperCase()
     message: |
-      Assigning a raw string directly to the `method` field (Issue #22).
+      A string is being directly assigned to the `method` field (Issue #22).
 
-      Gleam's HTTP method type (`Method` from `gleam/http`) is represented in JavaScript
-      as class instances like `Get`, `Post`, etc. Assigning a string causes
-      `case req.method { http.Get -> ... }` pattern matching on the Gleam side to
-      always fall through to `_`, completely breaking routing.
+      Gleam's HTTP method type (`Method` from `gleam/http`) is represented as
+      class instances like `Get`, `Post` in JavaScript. Assigning a string will cause
+      the `case req.method { http.Get -> ... }` pattern match on the Gleam side
+      to always fall through to `_`, completely breaking routing.
 
       Use `http.parse_method()` to convert to a Method instance.
     severity: error
@@ -20,6 +23,60 @@ rules:
         // Add: import * as $http from "gleam_http/gleam/http.mjs";
         function parseMethod(m) {
           const r = $http.parse_method(m.toUpperCase());
+          // Note: r[0] is an accepted Result-unwrapping pattern; gleam_http provides no accessor function
           return (r instanceof Ok) ? r[0] : new $http.Other(m.toUpperCase());
         }
         // Change: method: parseMethod(req.method)
+
+       Reference: https://gleam.run/documentation/externals/#defining-external-functions
+
+  # Additional rule: Direct assignment of req.method (without toUpperCase())
+  - id: ffi-gleam-method-raw-string
+    language: JavaScript
+    files:
+      - "src/**/ffi.*.mjs"
+      - "src/**/*_ffi.mjs"
+    rule:
+      pattern: method: $REQ.method
+    message: |
+      `req.method` is being directly assigned to the `method` field.
+
+      HTTP methods may be passed in lowercase, so you need to normalize to uppercase
+      with `.toUpperCase()` before passing to `http.parse_method()`.
+
+      Follow these steps:
+      1. Normalize to uppercase with `req.method.toUpperCase()`
+      2. Convert to a Gleam `http.Method` instance using `parseMethod()`
+    severity: error
+    note: |
+      Reference: https://gleam.run/documentation/externals/#javascript-externals
+
+      Correct implementation example (using gleam_http.parse_method):
+        import { parse_method, Other } from "gleam_http/gleam/http.mjs";
+        import { Ok } from "prelude.mjs";
+        // Inline IIFE used in toGleamRequest:
+        method: (() => {
+          const result = parse_method(req.method.toUpperCase());
+          return result instanceof Ok ? result[0] : new Other(req.method.toUpperCase());
+        })()
+
+  # Detect incorrect case-sensitive comparison of HTTP methods
+  - id: ffi-gleam-method-case-sensitive
+    language: JavaScript
+    files:
+      - "src/**/ffi.*.mjs"
+      - "src/**/*_ffi.mjs"
+    rule:
+      pattern: $VAL === "get"
+    message: |
+      Comparing an HTTP method against lowercase `"get"`.
+
+      Standard HTTP method names are uppercase (GET, POST, etc.).
+      Lowercase comparisons may not work as intended.
+      Always compare against uppercase values (`"GET"`, `"POST"`).
+
+      Where possible, prefer using `http.Method` instances
+      instead of string comparisons.
+
+      Reference: https://gleam.run/documentation/externals/#javascript-externals
+    severity: warning

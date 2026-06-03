@@ -1,0 +1,63 @@
+rules:
+  # Check if external library types are being exposed directly as Gleam API
+  - id: ffi-gleam-api-external-type-leak
+    files:
+      - "src/**/*_ffi.gleam"
+      - "src/**/ffi.gleam"
+    pattern: 'pub type'
+    message: |
+      A public Gleam type (`pub type`) is defined here.
+
+      NOTE: This is an intentionally broad reminder for FFI-adjacent files.
+      Not every `pub type` is a problem — verify whether an external/foreign type
+      (e.g. `Pid`, `Request`) is being exposed directly, which is the actual anti-pattern.
+
+      API design principles from the Gleam Externals guide:
+      > "Always design your APIs with Gleam in mind, no matter how
+      >  they are implemented internally."
+
+      Please verify the following:
+      1. **External type leakage**: Are external language types (Pid, Request objects, etc.)
+         being exposed directly as public types? → Define dedicated external types instead.
+      2. **Opaque type**: When handling external resources, define an opaque type with `pub type X`
+         that can only be manipulated through external functions.
+      3. **Gleam-idiomatic**: Is the API a direct imitation of the external API?
+
+      Reference: https://gleam.run/documentation/externals/#designing-apis-using-externals
+    severity: info
+    note: |
+      Good: Define a dedicated external type for type safety
+        pub type ZipHandle  // Opaque type - only manipulable through external functions
+
+        @external(erlang, "my_zip_library_ffi", "open")
+        pub fn open(zip: BitString) -> Result(ZipHandle, ZipError)
+
+      Bad: Using an external Pid type directly
+        import gleam/erlang/process.{type Pid}
+
+        @external(erlang, "my_zip_library_ffi", "open")
+        pub fn open(zip: BitString) -> Result(Pid, ZipError)
+        // ↑ Pid may be confused with other functions
+
+  # Check return type safety of FFI functions
+  - id: ffi-gleam-api-return-type-safety
+    files:
+      - "src/**/*.gleam"
+    pattern: '@external($TARGET, $MODULE, $FUNC)'
+    message: |
+      Verify that the return type of the `@external` function is appropriate.
+
+      The Gleam Externals guide requires that @external functions always have type annotations.
+      The Gleam compiler cannot verify the return type of external implementations.
+
+      Checkpoints:
+      1. Does the return type match the actual external implementation?
+      2. Are raw values or exceptions being returned where a Result type should be used?
+      3. Is null/undefined being returned where an Option type is needed?
+
+      Reference: https://gleam.run/documentation/externals/#defining-external-functions
+    severity: warning
+    note: |
+      It is recommended to write more unit tests than usual when using @external functions.
+      > "You may wish to write more unit tests than usual when using
+      >  external functions."
