@@ -23,7 +23,7 @@ rules:
 
       Incorrect example (missing type annotation):
         @external(javascript, "./ffi.node.mjs", "toGleamRequest")
-        pub fn to_gleam_request(req) ->  # Missing type annotation!
+        pub fn to_gleam_request(req: JsRequest)  // Missing return type annotation!
 
   # Check for target mismatch in @external
   - id: ffi-gleam-external-target-mismatch

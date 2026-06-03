@@ -2,10 +2,15 @@ rules:
   # Check if external library types are being exposed directly as Gleam API
   - id: ffi-gleam-api-external-type-leak
     files:
-      - "src/**/*.gleam"
+      - "src/**/*_ffi.gleam"
+      - "src/**/ffi.gleam"
     pattern: 'pub type'
     message: |
       A public Gleam type (`pub type`) is defined here.
+
+      NOTE: This is an intentionally broad reminder for FFI-adjacent files.
+      Not every `pub type` is a problem — verify whether an external/foreign type
+      (e.g. `Pid`, `Request`) is being exposed directly, which is the actual anti-pattern.
 
       API design principles from the Gleam Externals guide:
       > "Always design your APIs with Gleam in mind, no matter how
