@@ -21,9 +21,9 @@ rules:
         @external(javascript, "./ffi.node.mjs", "toGleamRequest")
         pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
 
-      Incorrect example (missing type annotation):
+      Incorrect example (missing parameter type annotation):
         @external(javascript, "./ffi.node.mjs", "toGleamRequest")
-        pub fn to_gleam_request(req) ->  # Missing type annotation!
+        pub fn to_gleam_request(req) -> Promise(Request(String))  # Parameter 'req' needs type!
 
   # Check for target mismatch in @external
   - id: ffi-gleam-external-target-mismatch

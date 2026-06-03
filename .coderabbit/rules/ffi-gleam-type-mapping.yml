@@ -6,11 +6,7 @@ rules:
       - "src/**/ffi.*.mjs"
       - "src/**/*_ffi.mjs"
     rule:
-      pattern: |
-        return {
-          ...,
-          ok: $VAL,
-        };
+      pattern: "return { $$$, ok: $VAL, $$$ };"
     message: |
       A plain object like `{ ok: value }` is being returned.
 
@@ -65,6 +61,10 @@ rules:
         import { SchoolPerson$Student$name } from './school.mjs';
         SchoolPerson$Student$name(student);
 
+      Note: This rule may produce false positives for legitimate bracket accesses
+      such as array[i], obj["key"], or items[0]. Dismiss matches that are not
+      accessing Gleam custom type internals.
+
   # Check if raw JS arrays are returned as List without List.fromArray()
   - id: ffi-gleam-list-raw-array
     language: JavaScript
@@ -72,7 +72,7 @@ rules:
       - "src/**/ffi.*.mjs"
       - "src/**/*_ffi.mjs"
     rule:
-      pattern: return [...]
+      pattern: "return [$$$]"
     message: |
       Are you returning a raw JS array as a Gleam List?
 
@@ -86,3 +86,6 @@ rules:
       Fix example:
         import { List } from "../../../prelude.mjs";
         List.fromArray([1, 2, 3]);
+
+      Note: Gleam tuples are represented as JavaScript arrays (e.g., `return [a, b]`
+      for `#(a, b)`). Dismiss matches that are intentional tuple returns.
