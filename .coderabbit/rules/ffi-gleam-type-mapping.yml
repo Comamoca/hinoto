@@ -6,11 +6,7 @@ rules:
       - "src/**/ffi.*.mjs"
       - "src/**/*_ffi.mjs"
     rule:
-      pattern: |
-        return {
-          ...,
-          ok: $VAL,
-        };
+      pattern: "return { $$$, ok: $VAL, $$$ };"
     message: |
       A plain object like `{ ok: value }` is being returned.
 
@@ -69,6 +65,10 @@ rules:
         import { SchoolPerson$Student$name } from './school.mjs';
         SchoolPerson$Student$name(student);
 
+      Note: This rule may produce false positives for legitimate bracket accesses
+      such as array[i], obj["key"], or items[0]. Dismiss matches that are not
+      accessing Gleam custom type internals.
+
       Exception: `result[0]` for unwrapping an `Ok` value is an accepted pattern
       in FFI code where no accessor function is provided by gleam_http.
 
@@ -79,7 +79,7 @@ rules:
       - "src/**/ffi.*.mjs"
       - "src/**/*_ffi.mjs"
     rule:
-      pattern: return [...]
+      pattern: "return [$$$]"
     message: |
       If this function returns to Gleam code as a `List` type, a raw JS array cannot be used.
 
@@ -96,3 +96,6 @@ rules:
       Fix example (when the return type is a Gleam List):
         import { List } from "../../../prelude.mjs";
         List.fromArray([1, 2, 3]);
+
+      Note: Gleam tuples are represented as JavaScript arrays (e.g., `return [a, b]`
+      for `#(a, b)`). Dismiss matches that are intentional tuple returns.

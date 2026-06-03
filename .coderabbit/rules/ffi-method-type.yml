@@ -7,7 +7,7 @@ rules:
       - "src/**/ffi.*.mjs"
       - "src/**/*_ffi.mjs"
     rule:
-      pattern: method: $METHOD.toUpperCase()
+      pattern: "method: $METHOD.toUpperCase()"
     message: |
       A string is being directly assigned to the `method` field (Issue #22).
 
@@ -37,7 +37,7 @@ rules:
       - "src/**/ffi.*.mjs"
       - "src/**/*_ffi.mjs"
     rule:
-      pattern: method: $REQ.method
+      pattern: "method: $REQ.method"
     message: |
       `req.method` is being directly assigned to the `method` field.
 
@@ -67,7 +67,7 @@ rules:
       - "src/**/ffi.*.mjs"
       - "src/**/*_ffi.mjs"
     rule:
-      pattern: $VAL === "get"
+      pattern: $VAR.method === "get"
     message: |
       Comparing an HTTP method against lowercase `"get"`.
 
