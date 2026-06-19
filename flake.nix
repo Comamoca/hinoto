@@ -130,6 +130,13 @@
               ++ javaScriptPackages;
           };
 
+          devShells.ci = pkgs.mkShell {
+            packages =
+              erlangPackages
+              ++ gleamPackages
+              ++ javaScriptPackages;
+          };
+
           packages.default = app;
         };
     };
