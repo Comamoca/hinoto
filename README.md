@@ -6,7 +6,7 @@
 ![Open Issues](https://img.shields.io/github/issues-raw/Comamoca/hinoto?style=flat-square)
 ![Bug Issues](https://img.shields.io/github/issues/Comamoca/hinoto/bug?style=flat-square)
 
-<img src="https://emoji2svg.deno.dev/api/🔥" alt="fire" height="100">
+<img src="https://emoji2svg.comamoca.dev/api/🔥" alt="fire" height="100">
 
 # Hinoto
 
