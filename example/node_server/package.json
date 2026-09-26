@@ -4,6 +4,7 @@
   "description": "",
   "license": "MIT",
   "dependencies": {
-    "@hono/node-server": "^2.0.0"
+    "@hono/node-server": "^2.0.0",
+    "ws": "^8.0.0"
   }
 }

@@ -107,7 +107,7 @@ pub fn response_creation_test() {
 // Test default_response_body function (JavaScript target with Body type)
 @target(javascript)
 pub fn default_response_body_test() {
-  let response = hinoto.default_response_body()
+  let response = body.default_response_body()
 
   // Verify response structure
   response.status |> should.equal(200)
@@ -123,7 +123,7 @@ pub fn default_response_body_test() {
 @target(javascript)
 pub fn body_type_handler_test() {
   let req = request.new() |> request.set_body(body.StringBody("test body"))
-  let resp = hinoto.default_response_body()
+  let resp = body.default_response_body()
   let hinoto_instance =
     hinoto.Hinoto(request: req, response: resp, context: Nil)
 
@@ -156,7 +156,7 @@ pub fn body_type_handler_test() {
 @target(javascript)
 pub fn empty_body_handler_test() {
   let req = request.new() |> request.set_body(body.EmptyBody)
-  let resp = hinoto.default_response_body()
+  let resp = body.default_response_body()
   let hinoto_instance =
     hinoto.Hinoto(request: req, response: resp, context: Nil)
 

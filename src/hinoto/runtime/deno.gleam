@@ -21,6 +21,12 @@ import gleam/option.{type Option, None, Some}
 import hinoto.{type Hinoto, type JsRequest, type JsResponse}
 
 @target(javascript)
+import hinoto/body.{WebSocketBody}
+
+@target(javascript)
+import hinoto/websocket.{type WebSocketHandler}
+
+@target(javascript)
 /// Default hostname used when none is specified
 const default_hostname = "0.0.0.0"
 
@@ -34,10 +40,10 @@ const default_port = 3000
 pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
 
 @target(javascript)
-/// Converts a Gleam HTTP response to a Deno response
+/// Converts a Gleam HTTP Response to a Deno response
 /// Note: Returns JsResponse directly for better performance (no unnecessary Promise wrapping)
 @external(javascript, "./ffi.deno.mjs", "toDenoResponse")
-pub fn to_deno_response(resp: Response(String)) -> JsResponse
+pub fn to_deno_response(resp: Response(body.Body)) -> JsResponse
 
 @target(javascript)
 /// External FFI function that interfaces with Deno's HTTP server
@@ -88,22 +94,57 @@ fn deno_serve(
 /// }
 /// ```
 pub fn handler(
-  app_handler: fn(Hinoto(Nil, String)) -> Promise(Hinoto(Nil, String)),
+  app_handler: fn(JsRequest, Hinoto(Nil, body.Body)) -> Promise(
+    Hinoto(Nil, body.Body),
+  ),
 ) -> fn(JsRequest) -> Promise(JsResponse) {
   fn(req: JsRequest) {
     use gleam_request <- promise.await(to_gleam_request(req))
 
+    let request =
+      gleam_request
+      |> request.set_body(body.StringBody(gleam_request.body))
+
     let hinoto_instance =
       hinoto.Hinoto(
-        request: gleam_request,
-        response: hinoto.default_response(),
+        request: request,
+        response: body.default_response_body(),
         context: Nil,
       )
 
-    use updated_hinoto <- promise.await(app_handler(hinoto_instance))
+    use updated_hinoto <- promise.await(app_handler(req, hinoto_instance))
     // Optimization: Wrap in promise.resolve only when needed for return type
     promise.resolve(to_deno_response(updated_hinoto.response))
   }
+}
+
+@target(javascript)
+@external(javascript, "./ffi.deno.mjs", "upgradeWebSocket")
+fn do_upgrade_websocket(
+  req: JsRequest,
+  handler: WebSocketHandler(state, Nil),
+  initial_state: state,
+  ctx: Nil,
+) -> JsResponse
+
+@target(javascript)
+/// Upgrades the current request to a WebSocket in Deno.
+pub fn upgrade_websocket(
+  req: JsRequest,
+  hinoto: Hinoto(Nil, body.Body),
+  handler: WebSocketHandler(state, Nil),
+  initial_state: state,
+) -> Promise(Hinoto(Nil, body.Body)) {
+  let js_response = do_upgrade_websocket(req, handler, initial_state, hinoto.context)
+
+  promise.resolve(
+    hinoto.Hinoto(
+      request: hinoto.request,
+      response: response.new(101)
+        |> response.set_body(WebSocketBody(js_response)),
+      context: hinoto.context,
+    )
+  )
 }
 
 @target(javascript)

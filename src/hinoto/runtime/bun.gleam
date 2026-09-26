@@ -21,6 +21,12 @@ import gleam/option.{type Option, None, Some}
 import hinoto.{type Hinoto, type JsRequest, type JsResponse}
 
 @target(javascript)
+import hinoto/body.{WebSocketBody}
+
+@target(javascript)
+import hinoto/websocket.{type WebSocketHandler}
+
+@target(javascript)
 /// Default hostname used when none is specified
 const default_hostname = "0.0.0.0"
 
@@ -29,21 +35,30 @@ const default_hostname = "0.0.0.0"
 const default_port = 3000
 
 @target(javascript)
+/// Opaque type representing Bun's server object passed to the fetch handler.
+pub type JsServer
+
+@target(javascript)
+/// Opaque type representing Bun's `websocket` server option.
+pub type JsWebSocketHandler
+
+@target(javascript)
 /// Converts a Bun request to a Gleam HTTP request
 @external(javascript, "./ffi.bun.mjs", "toGleamRequest")
 pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
 
 @target(javascript)
-/// Converts a Gleam HTTP response to a Bun response
+/// Converts a Gleam HTTP Response to a Bun response
 /// Note: Returns JsResponse directly for better performance (no unnecessary Promise wrapping)
 @external(javascript, "./ffi.bun.mjs", "toBunResponse")
-pub fn to_bun_response(resp: Response(String)) -> JsResponse
+pub fn to_bun_response(resp: Response(body.Body)) -> JsResponse
 
 @target(javascript)
 /// External FFI function that interfaces with Bun's HTTP server
 @external(javascript, "./ffi.bun.mjs", "serve")
 fn bun_serve(
-  fetch: fn(JsRequest) -> Promise(JsResponse),
+  fetch: fn(JsRequest, JsServer) -> Promise(JsResponse),
+  websocket: JsWebSocketHandler,
   port: Int,
   hostname: String,
 ) -> Nil
@@ -88,22 +103,70 @@ fn bun_serve(
 /// }
 /// ```
 pub fn handler(
-  app_handler: fn(Hinoto(Nil, String)) -> Promise(Hinoto(Nil, String)),
-) -> fn(JsRequest) -> Promise(JsResponse) {
-  fn(req: JsRequest) {
+  app_handler: fn(JsRequest, Hinoto(Nil, body.Body), JsServer) -> Promise(
+    Hinoto(Nil, body.Body),
+  ),
+) -> fn(JsRequest, JsServer) -> Promise(JsResponse) {
+  fn(req: JsRequest, server: JsServer) {
     use gleam_request <- promise.await(to_gleam_request(req))
+
+    let request =
+      gleam_request
+      |> request.set_body(body.StringBody(gleam_request.body))
 
     let hinoto_instance =
       hinoto.Hinoto(
-        request: gleam_request,
-        response: hinoto.default_response(),
+        request: request,
+        response: body.default_response_body(),
         context: Nil,
       )
 
-    use updated_hinoto <- promise.await(app_handler(hinoto_instance))
+    use updated_hinoto <- promise.await(app_handler(req, hinoto_instance, server))
     // Optimization: Wrap in promise.resolve only when needed for return type
     promise.resolve(to_bun_response(updated_hinoto.response))
   }
+}
+
+@target(javascript)
+@external(javascript, "./ffi.bun.mjs", "websocketHandler")
+fn do_websocket_handler(
+  handler: WebSocketHandler(state, Nil),
+) -> JsWebSocketHandler
+
+@target(javascript)
+/// Builds a Bun-compatible `websocket` handler from a Hinoto WebSocket handler.
+pub fn websocket_handler(
+  handler: WebSocketHandler(state, Nil),
+) -> JsWebSocketHandler {
+  do_websocket_handler(handler)
+}
+
+@target(javascript)
+@external(javascript, "./ffi.bun.mjs", "upgradeWebSocket")
+fn do_upgrade_websocket(
+  server: JsServer,
+  req: JsRequest,
+  initial_state: state,
+) -> JsResponse
+
+@target(javascript)
+/// Upgrades the current request to a WebSocket in Bun.
+pub fn upgrade_websocket(
+  server: JsServer,
+  req: JsRequest,
+  hinoto: Hinoto(Nil, body.Body),
+  initial_state: state,
+) -> Promise(Hinoto(Nil, body.Body)) {
+  let js_response = do_upgrade_websocket(server, req, initial_state)
+
+  promise.resolve(
+    hinoto.Hinoto(
+      request: hinoto.request,
+      response: response.new(101)
+        |> response.set_body(WebSocketBody(js_response)),
+      context: hinoto.context,
+    )
+  )
 }
 
 @target(javascript)
@@ -130,15 +193,16 @@ pub fn handler(
 /// bun.start_server(my_handler, None, None)
 /// ```
 pub fn start_server(
-  fetch: fn(JsRequest) -> Promise(JsResponse),
+  fetch: fn(JsRequest, JsServer) -> Promise(JsResponse),
+  websocket: JsWebSocketHandler,
   port: Option(Int),
   hostname: Option(String),
 ) {
   case port, hostname {
-    Some(port), Some(hostname) -> bun_serve(fetch, port, hostname)
-    Some(port), None -> bun_serve(fetch, port, default_hostname)
-    None, Some(hostname) -> bun_serve(fetch, default_port, hostname)
-    None, None -> bun_serve(fetch, default_port, default_hostname)
+    Some(port), Some(hostname) -> bun_serve(fetch, websocket, port, hostname)
+    Some(port), None -> bun_serve(fetch, websocket, port, default_hostname)
+    None, Some(hostname) -> bun_serve(fetch, websocket, default_port, hostname)
+    None, None -> bun_serve(fetch, websocket, default_port, default_hostname)
   }
 }
 
@@ -176,9 +240,10 @@ pub fn start_server(
 /// ```
 ///
 pub fn serve(
-  fetch: fn(JsRequest) -> Promise(JsResponse),
+  fetch: fn(JsRequest, JsServer) -> Promise(JsResponse),
+  websocket: JsWebSocketHandler,
   port: Option(Int),
   hostname: Option(String),
 ) {
-  start_server(fetch, port, hostname)
+  start_server(fetch, websocket, port, hostname)
 }

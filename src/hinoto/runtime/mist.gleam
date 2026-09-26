@@ -17,6 +17,8 @@ import gleam/http/response.{type Response}
 @target(erlang)
 import gleam/option
 @target(erlang)
+import hinoto/websocket.{type SyncWebSocketHandler, Binary, Close, Text}
+@target(erlang)
 import mist.{type Connection, type ResponseData}
 
 /// Default hostname used when none is specified
@@ -148,12 +150,10 @@ pub fn handler(
 /// mist.start_server(my_handler, Some(8080), None)
 /// ```
 pub fn start_server(
-  hinoto_handler: fn(Request(Connection)) -> Response(String),
+  mist_handler: fn(Request(Connection)) -> Response(ResponseData),
   port: option.Option(Int),
   hostname: option.Option(String),
 ) {
-  let mist_handler = handler(hinoto_handler)
-
   let actual_port = case port {
     option.Some(p) -> p
     option.None -> default_port
@@ -172,4 +172,47 @@ pub fn start_server(
     |> mist.start
 
   process.sleep_forever()
+}
+
+@target(erlang)
+/// Upgrades the current request to a WebSocket using Mist.
+///
+/// Mist uses synchronous callbacks, so this function takes a
+/// `SyncWebSocketHandler` instead of the promise-based `WebSocketHandler`.
+pub fn upgrade_websocket(
+  req: Request(Connection),
+  handler: SyncWebSocketHandler(state, Nil),
+  initial_state: state,
+) -> Response(ResponseData) {
+  mist.websocket(
+    request: req,
+    on_init: fn(conn) {
+      let socket = websocket.wrap(websocket.unsafe_coerce(conn))
+      let new_state = handler.on_open(socket, initial_state, Nil)
+      #(new_state, option.None)
+    },
+    on_close: fn(state) {
+      // Mist's on_close does not provide the connection, so we pass a
+      // placeholder socket. The user can still clean up state here.
+      let socket = websocket.wrap(websocket.unsafe_coerce(Nil))
+      handler.on_close(socket, state, Nil)
+    },
+    handler: fn(state, message, conn) {
+      let socket = websocket.wrap(websocket.unsafe_coerce(conn))
+      let ws_message = case message {
+        mist.Text(text) -> Text(text)
+        mist.Binary(bits) -> Binary(bits)
+        mist.Closed | mist.Shutdown -> Close(1006, "")
+        mist.Custom(_) -> Close(1006, "")
+      }
+      let new_state = handler.on_message(socket, state, Nil, ws_message)
+      case message {
+        mist.Closed | mist.Shutdown -> {
+          handler.on_close(socket, new_state, Nil)
+          mist.stop()
+        }
+        _ -> mist.continue(new_state)
+      }
+    },
+  )
 }

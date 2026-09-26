@@ -19,7 +19,7 @@ import gleam/int
 import gleam/io
 
 @target(javascript)
-import gleam/javascript/promise.{type Promise, await as promise_await}
+import gleam/javascript/promise.{type Promise}
 
 @target(javascript)
 import gleam/option.{type Option, None, Some}
@@ -28,9 +28,26 @@ import gleam/option.{type Option, None, Some}
 import hinoto.{type Hinoto, type JsRequest, type JsResponse}
 
 @target(javascript)
+import hinoto/body.{type Body}
+
+@target(javascript)
+import hinoto/websocket.{type WebSocketHandler}
+
+@target(javascript)
 /// Default port used when none is specified
 const default_port = 3000
 
+@target(javascript)
+/// Type representing the Node.js runtime environment passed through Hinoto's
+/// context. It carries the underlying Node.js request bindings needed for
+/// WebSocket upgrades.
+pub type NodeEnv
+
+@target(javascript)
+/// Empty context type alias kept for backward-compatible naming.
+pub type NodeContext = Nil
+
+@target(javascript)
 /// Server address information provided by Node.js when the server starts
 ///
 /// This type contains information about the address the server is bound to,
@@ -42,19 +59,54 @@ pub type Info {
 @target(javascript)
 /// Converts a Node.js request to a Gleam HTTP request
 @external(javascript, "./ffi.node.mjs", "toGleamRequest")
-pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
+pub fn to_gleam_request(req: JsRequest) -> Promise(Request(Body))
 
 @target(javascript)
 /// Converts a Gleam HTTP response to a Node.js response
 /// Note: Returns JsResponse directly for better performance (no unnecessary Promise wrapping)
 @external(javascript, "./ffi.node.mjs", "toNodeResponse")
-pub fn to_node_response(resp: Response(String)) -> JsResponse
+pub fn to_node_response(resp: Response(Body)) -> JsResponse
 
 @target(javascript)
-/// External FFI function that interfaces with Node.js HTTP server via Hono.js adapter
+/// External FFI function that performs the actual WebSocket upgrade.
+/// Returns the raw JavaScript Response object.
+@external(javascript, "./ffi.node.mjs", "doUpgradeWebSocket")
+fn do_upgrade_websocket(
+  req: JsRequest,
+  hinoto: Hinoto(NodeEnv, Body),
+  handler: WebSocketHandler(state, NodeEnv),
+  initial_state: state,
+) -> JsResponse
+
+@target(javascript)
+/// Upgrades the current request to a WebSocket in Node.js.
+///
+/// This function must be called from within a handler that received the
+/// raw `JsRequest` as its first argument. The Hinoto instance must carry
+/// a `NodeEnv` context provided by `node.handler`.
+pub fn upgrade_websocket(
+  req: JsRequest,
+  hinoto: Hinoto(NodeEnv, Body),
+  handler: WebSocketHandler(state, NodeEnv),
+  initial_state: state,
+) -> Promise(Hinoto(NodeEnv, Body)) {
+  let js_response = do_upgrade_websocket(req, hinoto, handler, initial_state)
+
+  promise.resolve(
+    hinoto.Hinoto(
+      request: hinoto.request,
+      response: response.new(101)
+        |> response.set_body(body.WebSocketBody(js_response)),
+      context: hinoto.context,
+    )
+  )
+}
+
+@target(javascript)
+/// External FFI function that interfaces with Node.js HTTP server
 @external(javascript, "./ffi.node.mjs", "serve")
 fn hono_serve(
-  fetch: fn(JsRequest) -> Promise(JsResponse),
+  fetch: fn(JsRequest, NodeEnv) -> Promise(JsResponse),
   port: Int,
   callback: fn(Info) -> Nil,
 ) -> Nil
@@ -63,17 +115,8 @@ fn hono_serve(
 /// Creates a handler for Node.js server with Hinoto
 ///
 /// This function wraps your application handler to work with Node.js HTTP server.
-/// The handler uses Promise-based async operations for handling requests.
-///
-/// **Important**: In JavaScript targets, the `hinoto.handle` function returns a
-/// `Promise(Hinoto)`, so you must use `promise.await` to handle the result.
-///
-/// ## Parameters
-/// - `app_handler`: Your application handler that processes Hinoto instances and
-///   returns a Promise of the updated instance
-///
-/// ## Returns
-/// A Promise-based function that can be used with `start_server`
+/// The handler receives both the raw `JsRequest` and the Hinoto instance, which
+/// is required for WebSocket upgrades.
 ///
 /// ## Example (Promise-based handler)
 /// ```gleam
@@ -83,7 +126,7 @@ fn hono_serve(
 /// import gleam/javascript/promise
 ///
 /// pub fn main() {
-///   let handler = node.handler(fn(hinoto_instance) {
+///   let handler = node.handler(fn(req, hinoto_instance) {
 ///     use updated_hinoto <- promise.await(
 ///       hinoto_instance
 ///       |> hinoto.handle(fn(_req) {
@@ -99,19 +142,19 @@ fn hono_serve(
 /// }
 /// ```
 pub fn handler(
-  app_handler: fn(Hinoto(Nil, String)) -> Promise(Hinoto(Nil, String)),
-) -> fn(JsRequest) -> Promise(JsResponse) {
-  fn(req: JsRequest) {
+  app_handler: fn(JsRequest, Hinoto(NodeEnv, Body)) -> Promise(Hinoto(NodeEnv, Body)),
+) -> fn(JsRequest, NodeEnv) -> Promise(JsResponse) {
+  fn(req: JsRequest, env: NodeEnv) {
     use gleam_request <- promise.await(to_gleam_request(req))
 
     let hinoto_instance =
       hinoto.Hinoto(
         request: gleam_request,
-        response: hinoto.default_response(),
-        context: Nil,
+        response: body.default_response_body(),
+        context: env,
       )
 
-    use updated_hinoto <- promise.await(app_handler(hinoto_instance))
+    use updated_hinoto <- promise.await(app_handler(req, hinoto_instance))
     // Optimization: Wrap in promise.resolve only when needed for return type
     promise.resolve(to_node_response(updated_hinoto.response))
   }
@@ -151,7 +194,7 @@ pub fn handler(
 /// ```
 ///
 pub fn start_server(
-  fetch: fn(JsRequest) -> Promise(JsResponse),
+  fetch: fn(JsRequest, NodeEnv) -> Promise(JsResponse),
   port: Option(Int),
   callback: Option(fn(Info) -> Nil),
 ) {

@@ -7,6 +7,9 @@ import gleam/javascript/promise.{type Promise}
 
 @target(javascript)
 import gleam/dynamic.{type Dynamic}
+@target(javascript)
+import gleam/http/response.{type Response}
+import hinoto.{type JsRequest, type JsResponse}
 
 /// Opaque type representing a JavaScript Blob object
 pub type JsBlob
@@ -28,9 +31,6 @@ pub type JsReadableStream
 
 /// Opaque type representing a JavaScript URLSearchParams object
 pub type JsURLSearchParams
-
-/// Opaque type representing a JavaScript Request object (used for lazy body reading)
-pub type JsRequest
 
 /// Represents different types of HTTP body content
 ///
@@ -108,6 +108,12 @@ pub type Body {
   /// The body is not read until explicitly requested via read_* functions.
   RequestBody(JsRequest)
 
+  /// WebSocket handshake response (JavaScript runtimes only)
+  ///
+  /// Holds a pre-built JavaScript Response object for a 101 Switching Protocols
+  /// response. Runtime-specific conversion functions return this body directly.
+  WebSocketBody(JsResponse)
+
   /// Empty body (no content)
   ///
   /// Used when there is no body content (e.g., GET requests, 204 responses).
@@ -182,3 +188,13 @@ pub fn read_bits(body: Body) -> Promise(Result(BitArray, BodyReadError))
 /// ```
 @external(javascript, "./body_ffi.mjs", "readJson")
 pub fn read_json(body: Body) -> Promise(Result(Dynamic, BodyReadError))
+
+@target(javascript)
+/// Default response handler with Body type (JavaScript target only)
+///
+/// This function creates a basic HTTP 200 OK response with a StringBody.
+/// It's used as the default response in JavaScript runtimes with Body type support.
+pub fn default_response_body() -> Response(Body) {
+  response.new(200)
+  |> response.set_body(StringBody("Hello from hinoto!"))
+}

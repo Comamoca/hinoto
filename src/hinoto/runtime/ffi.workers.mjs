@@ -28,8 +28,10 @@ import {
   FormDataBody,
   ReadableStreamBody,
   URLSearchParamsBody,
+  WebSocketBody,
   EmptyBody
 } from "../body.mjs";
+import { Text, Binary, Close, Ping, Pong } from "../websocket.mjs";
 
 /**
  * Converts a Cloudflare Workers Request to a Gleam HTTP Request
@@ -119,6 +121,11 @@ function convertBodyToJS(body) {
     return null;
   }
 
+  // WebSocketBody: return the pre-built Response object directly
+  if (body instanceof WebSocketBody) {
+    return body[0];
+  }
+
   // RequestBody: should not be used in Response, but if it is, return null
   if (body instanceof RequestBody) {
     console.warn("RequestBody should not be used in Response. Returning null.");
@@ -136,6 +143,12 @@ function convertBodyToJS(body) {
  * @returns {Response} Cloudflare Workers Response object
  */
 export function toWorkersResponse(resp) {
+  // WebSocket handshake responses are pre-built by the runtime FFI.
+  // Return them directly without wrapping in a new Response.
+  if (resp.body instanceof WebSocketBody) {
+    return resp.body[0];
+  }
+
   const headers = new Headers();
 
   // Optimization: Use for...of instead of forEach for better performance
@@ -154,4 +167,74 @@ export function toWorkersResponse(resp) {
     status: resp.status,
     headers: headers,
   });
+}
+
+/**
+ * Wraps a raw JavaScript WebSocket into the Hinoto WebSocket wrapper.
+ */
+function wrapWebSocket(socket) {
+  return { inner: socket };
+}
+
+/**
+ * Converts a JavaScript MessageEvent into a Hinot WebSocketMessage variant.
+ */
+function toWebSocketMessage(event) {
+  if (typeof event.data === "string") {
+    return new Text(event.data);
+  }
+  if (event.data instanceof ArrayBuffer) {
+    return new Binary(new Uint8Array(event.data));
+  }
+  if (ArrayBuffer.isView(event.data)) {
+    return new Binary(new Uint8Array(event.data.buffer));
+  }
+  // Fallback: stringify unknown data.
+  return new Text(String(event.data));
+}
+
+/**
+ * Upgrades a Cloudflare Workers request to a WebSocket.
+ *
+ * @param {Request} req - The incoming Request object
+ * @param {Object} handler - Gleam WebSocketHandler record
+ * @param {*} initial_state - Initial handler state
+ * @param {*} ctx - Cloudflare Workers execution context
+ * @returns {Response} 101 Switching Protocols Response
+ */
+export function upgradeWebSocket(req, handler, initial_state, ctx) {
+  const pair = new WebSocketPair();
+  const client = pair[0];
+  const server = pair[1];
+
+  server.accept();
+
+  let state = initial_state;
+  const socket = wrapWebSocket(server);
+
+  server.addEventListener("open", () => {
+    Promise.resolve(handler.on_open(socket, state, ctx))
+      .then(new_state => { state = new_state; })
+      .catch(err => console.error("WebSocket on_open error:", err));
+  });
+
+  server.addEventListener("message", event => {
+    const message = toWebSocketMessage(event);
+    Promise.resolve(handler.on_message(socket, state, ctx, message))
+      .then(new_state => { state = new_state; })
+      .catch(err => console.error("WebSocket on_message error:", err));
+  });
+
+  server.addEventListener("close", () => {
+    Promise.resolve(handler.on_close(socket, state, ctx))
+      .catch(err => console.error("WebSocket on_close error:", err));
+  });
+
+  server.addEventListener("error", event => {
+    console.error("WebSocket error:", event);
+    Promise.resolve(handler.on_close(socket, state, ctx))
+      .catch(err => console.error("WebSocket on_close error:", err));
+  });
+
+  return new Response(null, { status: 101, webSocket: client });
 }
