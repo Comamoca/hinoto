@@ -6,17 +6,40 @@ import gleam/string
 import hinoto.{type Hinoto}
 import hinoto/body.{type Body}
 import hinoto/runtime/workers.{type WorkersContext}
+import hinoto/websocket.{type WebSocketHandler, Text}
 
 pub fn main() {
   workers.serve(fn(hinoto: Hinoto(WorkersContext, Body)) -> Promise(
     Hinoto(WorkersContext, Body),
   ) {
-    use hinoto <- promise.await(
-      hinoto
-      |> hinoto.handle(handler),
-    )
-    promise.resolve(hinoto)
+    case request.path_segments(hinoto.request) {
+      ["ws"] -> workers.upgrade_websocket(hinoto, ws_handler(), Nil)
+      _ -> {
+        use hinoto <- promise.await(
+          hinoto
+          |> hinoto.handle(handler),
+        )
+        promise.resolve(hinoto)
+      }
+    }
   })
+}
+
+fn ws_handler() -> WebSocketHandler(Nil, WorkersContext) {
+  websocket.handler(
+    on_open: fn(_ws, state, _ctx) { promise.resolve(state) },
+    on_message: fn(ws, state, _ctx, message) {
+      case message {
+        Text(text) -> websocket.send_text(ws, "echo: " <> text)
+        _ -> Nil
+      }
+      promise.resolve(state)
+    },
+    on_close: fn(ws, _state, _ctx) {
+      websocket.close(ws)
+      promise.resolve(Nil)
+    },
+  )
 }
 
 pub fn handler(req) {

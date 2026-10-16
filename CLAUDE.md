@@ -17,6 +17,7 @@ Kiro-style Spec Driven Development implementation using claude code slash comman
 ### Active Specifications
 - `target-based-async-types`: @targetを使ってJavaScriptとErlangターゲットで異なる非同期型を実装し、JavaScript環境でPromiseを復活させる機能 (初期化済み)
 - `flexible-body-types`: JavaScriptターゲットのJsResponse/JsRequestの変換処理において、bodyの型をStringに固定せず、MDN仕様に基づいて全ての有効な値に対応 (初期化済み)
+- `websocket-support`: Hinotoの全ランタイム（Workers/Deno/Bun/Node/Mist）でWebSocketをサポートする機能 (実装中)
 - Check `.kiro/specs/` for active specifications
 - Use `/kiro:spec-status [feature-name]` to check progress
 

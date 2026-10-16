@@ -14,7 +14,10 @@ import gleam/javascript/promise.{type Promise, await as promise_await}
 import hinoto.{type Hinoto, type JsRequest, type JsResponse}
 
 @target(javascript)
-import hinoto/body.{type Body}
+import hinoto/body.{type Body, RequestBody, WebSocketBody}
+
+@target(javascript)
+import hinoto/websocket.{type WebSocketHandler}
 
 @target(javascript)
 /// Type representing Cloudflare Workers execution context
@@ -83,7 +86,7 @@ pub fn serve(
     let hinoto =
       hinoto.Hinoto(
         request: gleam_request,
-        response: hinoto.default_response_body(),
+        response: body.default_response_body(),
         context: ctx,
       )
 
@@ -91,4 +94,41 @@ pub fn serve(
     // Optimization: Wrap in promise.resolve only when needed for return type
     promise.resolve(to_workers_response(updated_hinoto.response))
   }
+}
+
+@target(javascript)
+@external(javascript, "./ffi.workers.mjs", "upgradeWebSocket")
+fn do_upgrade_websocket(
+  req: JsRequest,
+  handler: WebSocketHandler(state, WorkersContext),
+  initial_state: state,
+  ctx: WorkersContext,
+) -> JsResponse
+
+@target(javascript)
+/// Upgrades the current request to a WebSocket in Cloudflare Workers.
+///
+/// The response body is set to `WebSocketBody`, which `to_workers_response`
+/// returns directly as the 101 Switching Protocols response required by
+/// Cloudflare Workers.
+pub fn upgrade_websocket(
+  hinoto: Hinoto(WorkersContext, Body),
+  handler: WebSocketHandler(state, WorkersContext),
+  initial_state: state,
+) -> Promise(Hinoto(WorkersContext, Body)) {
+  let req = case hinoto.request.body {
+    RequestBody(req) -> req
+    _ -> panic as "Workers request body must be RequestBody"
+  }
+
+  let js_response = do_upgrade_websocket(req, handler, initial_state, hinoto.context)
+
+  promise.resolve(
+    hinoto.Hinoto(
+      request: hinoto.request |> request.set_body(body.EmptyBody),
+      response: response.new(101)
+        |> response.set_body(WebSocketBody(js_response)),
+      context: hinoto.context,
+    )
+  )
 }

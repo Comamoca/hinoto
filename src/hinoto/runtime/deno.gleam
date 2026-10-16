@@ -21,6 +21,12 @@ import gleam/option.{type Option, None, Some}
 import hinoto.{type Hinoto, type JsRequest, type JsResponse}
 
 @target(javascript)
+import hinoto/body.{RequestBody, WebSocketBody}
+
+@target(javascript)
+import hinoto/websocket.{type WebSocketHandler}
+
+@target(javascript)
 /// Default hostname used when none is specified
 const default_hostname = "0.0.0.0"
 
@@ -30,14 +36,17 @@ const default_port = 3000
 
 @target(javascript)
 /// Converts a Deno request to a Gleam HTTP request
+///
+/// The request body is wrapped in a `Body` type with lazy evaluation.
+/// Use `body.read_text()`, `body.read_json()`, etc. to read the body content.
 @external(javascript, "./ffi.deno.mjs", "toGleamRequest")
-pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
+pub fn to_gleam_request(req: JsRequest) -> Promise(Request(body.Body))
 
 @target(javascript)
-/// Converts a Gleam HTTP response to a Deno response
+/// Converts a Gleam HTTP Response to a Deno response
 /// Note: Returns JsResponse directly for better performance (no unnecessary Promise wrapping)
 @external(javascript, "./ffi.deno.mjs", "toDenoResponse")
-pub fn to_deno_response(resp: Response(String)) -> JsResponse
+pub fn to_deno_response(resp: Response(body.Body)) -> JsResponse
 
 @target(javascript)
 /// External FFI function that interfaces with Deno's HTTP server
@@ -88,7 +97,7 @@ fn deno_serve(
 /// }
 /// ```
 pub fn handler(
-  app_handler: fn(Hinoto(Nil, String)) -> Promise(Hinoto(Nil, String)),
+  app_handler: fn(Hinoto(Nil, body.Body)) -> Promise(Hinoto(Nil, body.Body)),
 ) -> fn(JsRequest) -> Promise(JsResponse) {
   fn(req: JsRequest) {
     use gleam_request <- promise.await(to_gleam_request(req))
@@ -96,7 +105,7 @@ pub fn handler(
     let hinoto_instance =
       hinoto.Hinoto(
         request: gleam_request,
-        response: hinoto.default_response(),
+        response: body.default_response_body(),
         context: Nil,
       )
 
@@ -104,6 +113,43 @@ pub fn handler(
     // Optimization: Wrap in promise.resolve only when needed for return type
     promise.resolve(to_deno_response(updated_hinoto.response))
   }
+}
+
+@target(javascript)
+@external(javascript, "./ffi.deno.mjs", "upgradeWebSocket")
+fn do_upgrade_websocket(
+  req: JsRequest,
+  handler: WebSocketHandler(state, Nil),
+  initial_state: state,
+  ctx: Nil,
+) -> JsResponse
+
+@target(javascript)
+/// Upgrades the current request to a WebSocket in Deno.
+///
+/// The raw request is taken from `hinoto.request`, which carries it as
+/// `RequestBody`, so the handler does not need to thread it through.
+pub fn upgrade_websocket(
+  hinoto: Hinoto(Nil, body.Body),
+  handler: WebSocketHandler(state, Nil),
+  initial_state: state,
+) -> Promise(Hinoto(Nil, body.Body)) {
+  let req = case hinoto.request.body {
+    RequestBody(req) -> req
+    _ -> panic as "Deno request body must be RequestBody"
+  }
+
+  let js_response =
+    do_upgrade_websocket(req, handler, initial_state, hinoto.context)
+
+  promise.resolve(
+    hinoto.Hinoto(
+      request: hinoto.request |> request.set_body(body.EmptyBody),
+      response: response.new(101)
+        |> response.set_body(WebSocketBody(js_response)),
+      context: hinoto.context,
+    )
+  )
 }
 
 @target(javascript)
