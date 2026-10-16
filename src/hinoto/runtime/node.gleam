@@ -72,7 +72,6 @@ pub fn to_node_response(resp: Response(Body)) -> JsResponse
 /// Returns the raw JavaScript Response object.
 @external(javascript, "./ffi.node.mjs", "doUpgradeWebSocket")
 fn do_upgrade_websocket(
-  req: JsRequest,
   hinoto: Hinoto(NodeEnv, Body),
   handler: WebSocketHandler(state, NodeEnv),
   initial_state: state,
@@ -81,20 +80,19 @@ fn do_upgrade_websocket(
 @target(javascript)
 /// Upgrades the current request to a WebSocket in Node.js.
 ///
-/// This function must be called from within a handler that received the
-/// raw `JsRequest` as its first argument. The Hinoto instance must carry
-/// a `NodeEnv` context provided by `node.handler`.
+/// The underlying Node.js socket is taken from the `NodeEnv` context that
+/// `node.handler` provides, so the handler does not need to thread the raw
+/// request through.
 pub fn upgrade_websocket(
-  req: JsRequest,
   hinoto: Hinoto(NodeEnv, Body),
   handler: WebSocketHandler(state, NodeEnv),
   initial_state: state,
 ) -> Promise(Hinoto(NodeEnv, Body)) {
-  let js_response = do_upgrade_websocket(req, hinoto, handler, initial_state)
+  let js_response = do_upgrade_websocket(hinoto, handler, initial_state)
 
   promise.resolve(
     hinoto.Hinoto(
-      request: hinoto.request,
+      request: hinoto.request |> request.set_body(body.EmptyBody),
       response: response.new(101)
         |> response.set_body(body.WebSocketBody(js_response)),
       context: hinoto.context,
@@ -115,8 +113,8 @@ fn hono_serve(
 /// Creates a handler for Node.js server with Hinoto
 ///
 /// This function wraps your application handler to work with Node.js HTTP server.
-/// The handler receives both the raw `JsRequest` and the Hinoto instance, which
-/// is required for WebSocket upgrades.
+/// The Hinoto instance carries a `NodeEnv` context, which `upgrade_websocket`
+/// uses to reach the underlying Node.js socket.
 ///
 /// ## Example (Promise-based handler)
 /// ```gleam
@@ -126,7 +124,7 @@ fn hono_serve(
 /// import gleam/javascript/promise
 ///
 /// pub fn main() {
-///   let handler = node.handler(fn(req, hinoto_instance) {
+///   let handler = node.handler(fn(hinoto_instance) {
 ///     use updated_hinoto <- promise.await(
 ///       hinoto_instance
 ///       |> hinoto.handle(fn(_req) {
@@ -142,7 +140,7 @@ fn hono_serve(
 /// }
 /// ```
 pub fn handler(
-  app_handler: fn(JsRequest, Hinoto(NodeEnv, Body)) -> Promise(Hinoto(NodeEnv, Body)),
+  app_handler: fn(Hinoto(NodeEnv, Body)) -> Promise(Hinoto(NodeEnv, Body)),
 ) -> fn(JsRequest, NodeEnv) -> Promise(JsResponse) {
   fn(req: JsRequest, env: NodeEnv) {
     use gleam_request <- promise.await(to_gleam_request(req))
@@ -154,7 +152,7 @@ pub fn handler(
         context: env,
       )
 
-    use updated_hinoto <- promise.await(app_handler(req, hinoto_instance))
+    use updated_hinoto <- promise.await(app_handler(hinoto_instance))
     // Optimization: Wrap in promise.resolve only when needed for return type
     promise.resolve(to_node_response(updated_hinoto.response))
   }

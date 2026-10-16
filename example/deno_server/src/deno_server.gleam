@@ -10,9 +10,9 @@ import hinoto/websocket.{type WebSocketHandler, Text}
 
 pub fn main() -> Nil {
   let fetch_handler =
-    deno.handler(fn(req, hinoto_instance) {
+    deno.handler(fn(hinoto_instance) {
       case request.path_segments(hinoto_instance.request) {
-        ["ws"] -> deno.upgrade_websocket(req, hinoto_instance, ws_handler(), Nil)
+        ["ws"] -> deno.upgrade_websocket(hinoto_instance, ws_handler(), Nil)
         _ -> {
           use updated_hinoto <- promise.await(
             hinoto_instance

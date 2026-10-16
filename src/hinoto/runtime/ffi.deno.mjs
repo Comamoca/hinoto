@@ -24,31 +24,24 @@ import {
   FormDataBody,
   ReadableStreamBody,
   URLSearchParamsBody,
+  RequestBody,
   EmptyBody
 } from "../body.mjs";
 import { Text, Binary, Close, Ping, Pong } from "../websocket.mjs";
 
 /**
- * Checks if the request body should be read based on HTTP method
- * @param {string} method - HTTP method
- * @returns {boolean} true if body should be read
- */
-function shouldReadBody(method) {
-  const m = method.toUpperCase();
-  // Don't read body for methods that typically don't have one
-  return !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(m);
-}
-
-/**
  * Converts a Deno Request to a Gleam HTTP Request
  * @param {Request} req - The Deno Request object
  * @returns {Promise<Object>} Gleam HTTP Request object
+ *
+ * Note: Body is passed as-is (lazy evaluation). Use read_text(), read_json(), etc. to read it.
+ * Keeping the original Request also lets `upgrade_websocket` reach it.
  */
 export async function toGleamRequest(req) {
   const url = new URL(req.url);
 
-  // Optimization: Skip body reading for GET/HEAD/OPTIONS/TRACE requests
-  const body = shouldReadBody(req.method) ? await req.text() : "";
+  // Optimization: Pass Request object wrapped in RequestBody for lazy body reading
+  const body = new RequestBody(req);
 
   // Optimization: Use spread operator for more efficient header conversion
   const headers = List.fromArray([...req.headers]);
@@ -102,6 +95,10 @@ function convertBodyToJS(body) {
     return body[0];
   }
   if (body instanceof EmptyBody) {
+    return null;
+  }
+  if (body instanceof RequestBody) {
+    console.warn("RequestBody should not be used in Response. Returning null.");
     return null;
   }
   console.warn(`Unknown body type: ${body.constructor.name}. Returning null.`);

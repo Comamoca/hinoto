@@ -6,28 +6,13 @@ import gleam/string
 import hinoto
 import hinoto/body.{type Body, StringBody}
 import hinoto/runtime/bun
-import hinoto/websocket.{Text}
+import hinoto/websocket.{type WebSocketHandler, Text}
 
 pub fn main() -> Nil {
-  let ws_handler =
-    bun.websocket_handler(
-      websocket.handler(
-        on_open: fn(_ws, state, _ctx) { promise.resolve(state) },
-        on_message: fn(ws, state, _ctx, message) {
-          case message {
-            Text(text) -> websocket.send_text(ws, "echo: " <> text)
-            _ -> Nil
-          }
-          promise.resolve(state)
-        },
-        on_close: fn(_ws, _state, _ctx) { promise.resolve(Nil) },
-      ),
-    )
-
   let fetch_handler =
-    bun.handler(fn(req, hinoto_instance, server) {
+    bun.handler(fn(hinoto_instance) {
       case request.path_segments(hinoto_instance.request) {
-        ["ws"] -> bun.upgrade_websocket(server, req, hinoto_instance, Nil)
+        ["ws"] -> bun.upgrade_websocket(hinoto_instance, ws_handler(), Nil)
         _ -> {
           use updated_hinoto <- promise.await(
             hinoto_instance
@@ -38,7 +23,21 @@ pub fn main() -> Nil {
       }
     })
 
-  bun.start_server(fetch_handler, ws_handler, None, None)
+  bun.start_server(fetch_handler, None, None)
+}
+
+fn ws_handler() -> WebSocketHandler(Nil, Nil) {
+  websocket.handler(
+    on_open: fn(_ws, state, _ctx) { promise.resolve(state) },
+    on_message: fn(ws, state, _ctx, message) {
+      case message {
+        Text(text) -> websocket.send_text(ws, "echo: " <> text)
+        _ -> Nil
+      }
+      promise.resolve(state)
+    },
+    on_close: fn(_ws, _state, _ctx) { promise.resolve(Nil) },
+  )
 }
 
 pub fn handler(req: request.Request(Body)) {

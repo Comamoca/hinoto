@@ -48,9 +48,9 @@ import hinoto/websocket.{Text}
 
 pub fn main() -> Nil {
   let fetch_handler =
-    node.handler(fn(req, hinoto_instance) {
+    node.handler(fn(hinoto_instance) {
       case request.path_segments(hinoto_instance.request) {
-        ["ws"] -> node.upgrade_websocket(req, hinoto_instance, ws_handler(), Nil)
+        ["ws"] -> node.upgrade_websocket(hinoto_instance, ws_handler(), Nil)
         _ -> {
           use updated_hinoto <- promise.await(
             hinoto_instance
@@ -257,15 +257,13 @@ fn ws_handler() -> SyncWebSocketHandler(Nil, Nil) {
 
 ### Deno / Bun
 
-Deno and Bun handlers now receive the raw `JsRequest` as the first argument:
-
 ```gleam
 import hinoto/runtime/deno
 
 pub fn main() {
-  let app_handler = fn(req, hinoto) {
+  let app_handler = fn(hinoto) {
     case request.path_segments(hinoto.request) {
-      ["ws"] -> deno.upgrade_websocket(req, hinoto, ws_handler(), Nil)
+      ["ws"] -> deno.upgrade_websocket(hinoto, ws_handler(), Nil)
       _ -> hinoto |> hinoto.handle(http_handler)
     }
   }
@@ -274,11 +272,14 @@ pub fn main() {
 }
 ```
 
-Bun additionally requires a `websocket` option when starting the server. See `example/bun_server` for a complete example.
+Bun is identical apart from the module name. Bun registers its WebSocket handler
+on `Bun.serve`, but Hinoto hides that behind an internal dispatcher, so
+`bun.start_server` takes no `websocket` argument and each route may use its own
+handler. See `example/bun_server` for a complete example.
 
 ### Node.js
 
-Node.js uses `@hono/node-server` for the HTTP server and `ws` for WebSocket handling. The handler receives the raw `JsRequest` as its first argument, which is required for upgrades.
+Node.js uses `@hono/node-server` for the HTTP server and `ws` for WebSocket handling. The Node runtime bindings needed for an upgrade travel in the `NodeEnv` context that `node.handler` provides.
 
 ```gleam
 import hinoto/runtime/node
@@ -300,9 +301,9 @@ fn ws_handler() -> websocket.WebSocketHandler(Nil, node.NodeEnv) {
 
 pub fn main() {
   node.start_server(
-    node.handler(fn(req, hinoto) {
+    node.handler(fn(hinoto) {
       case request.path_segments(hinoto.request) {
-        ["ws"] -> node.upgrade_websocket(req, hinoto, ws_handler(), Nil)
+        ["ws"] -> node.upgrade_websocket(hinoto, ws_handler(), Nil)
         _ -> hinoto |> hinoto.handle(http_handler)
       }
     }),
@@ -312,11 +313,37 @@ pub fn main() {
 }
 ```
 
+### A single signature across the JavaScript runtimes
+
+Every JavaScript runtime exposes the same upgrade call, so a handler ports
+between them by changing only the module name and the context type:
+
+```gleam
+pub fn upgrade_websocket(
+  hinoto: Hinoto(ctx, Body),
+  handler: WebSocketHandler(state, ctx),
+  initial_state: state,
+) -> Promise(Hinoto(ctx, Body))
+```
+
+| Runtime | `ctx` | Where the upgrade gets its runtime handle |
+|---------|-------|--------------------------------------------|
+| **Cloudflare Workers** | `WorkersContext` | `RequestBody` in `hinoto.request` |
+| **Deno** | `Nil` | `RequestBody` in `hinoto.request` |
+| **Bun** | `Nil` | `RequestBody` in `hinoto.request` (server attached by `bun.handler`) |
+| **Node.js** | `NodeEnv` | `NodeEnv` context |
+
+Mist keeps its own shape: Erlang has no promises, so it takes a
+`SyncWebSocketHandler` and returns Mist's `Response(ResponseData)` rather than a
+`Hinoto`.
+
 ## ⚠️ Breaking Changes
 
-- `deno.handler` and `bun.handler` signatures changed to `fn(JsRequest, Hinoto(Nil, body.Body), ...)` so the raw request is available for WebSocket upgrades.
-- `bun.start_server` and `bun.serve` now require a `JsWebSocketHandler` as the second argument.
-- `node.handler` signature changed to `fn(JsRequest, Hinoto(node.NodeEnv, body.Body), ...)` so the raw request and Node runtime bindings are available for WebSocket upgrades.
+- `upgrade_websocket` takes `(hinoto, handler, initial_state)` on every JavaScript runtime. The raw `JsRequest` argument is gone, as is Bun's `server` argument.
+- `deno.handler`, `bun.handler` and `node.handler` take `fn(Hinoto(ctx, body.Body)) -> Promise(Hinoto(ctx, body.Body))`. They no longer receive the raw `JsRequest`.
+- `bun.start_server` and `bun.serve` no longer take a `JsWebSocketHandler`; `bun.websocket_handler` and the `JsWebSocketHandler` type were removed.
+- `deno.to_gleam_request` and `bun.to_gleam_request` return `Request(body.Body)` instead of `Request(String)`.
+- Deno, Bun and Node.js now carry the request body as a lazy `body.RequestBody`, matching Cloudflare Workers. Read it with `body.read_text()`, `body.read_json()`, etc. instead of matching on `body.StringBody`.
 - `node.start_server` uses `body.Body` for request/response bodies.
 
 ## Request Body Types by Runtime

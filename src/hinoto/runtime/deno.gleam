@@ -21,7 +21,7 @@ import gleam/option.{type Option, None, Some}
 import hinoto.{type Hinoto, type JsRequest, type JsResponse}
 
 @target(javascript)
-import hinoto/body.{WebSocketBody}
+import hinoto/body.{RequestBody, WebSocketBody}
 
 @target(javascript)
 import hinoto/websocket.{type WebSocketHandler}
@@ -36,8 +36,11 @@ const default_port = 3000
 
 @target(javascript)
 /// Converts a Deno request to a Gleam HTTP request
+///
+/// The request body is wrapped in a `Body` type with lazy evaluation.
+/// Use `body.read_text()`, `body.read_json()`, etc. to read the body content.
 @external(javascript, "./ffi.deno.mjs", "toGleamRequest")
-pub fn to_gleam_request(req: JsRequest) -> Promise(Request(String))
+pub fn to_gleam_request(req: JsRequest) -> Promise(Request(body.Body))
 
 @target(javascript)
 /// Converts a Gleam HTTP Response to a Deno response
@@ -94,25 +97,19 @@ fn deno_serve(
 /// }
 /// ```
 pub fn handler(
-  app_handler: fn(JsRequest, Hinoto(Nil, body.Body)) -> Promise(
-    Hinoto(Nil, body.Body),
-  ),
+  app_handler: fn(Hinoto(Nil, body.Body)) -> Promise(Hinoto(Nil, body.Body)),
 ) -> fn(JsRequest) -> Promise(JsResponse) {
   fn(req: JsRequest) {
     use gleam_request <- promise.await(to_gleam_request(req))
 
-    let request =
-      gleam_request
-      |> request.set_body(body.StringBody(gleam_request.body))
-
     let hinoto_instance =
       hinoto.Hinoto(
-        request: request,
+        request: gleam_request,
         response: body.default_response_body(),
         context: Nil,
       )
 
-    use updated_hinoto <- promise.await(app_handler(req, hinoto_instance))
+    use updated_hinoto <- promise.await(app_handler(hinoto_instance))
     // Optimization: Wrap in promise.resolve only when needed for return type
     promise.resolve(to_deno_response(updated_hinoto.response))
   }
@@ -129,17 +126,25 @@ fn do_upgrade_websocket(
 
 @target(javascript)
 /// Upgrades the current request to a WebSocket in Deno.
+///
+/// The raw request is taken from `hinoto.request`, which carries it as
+/// `RequestBody`, so the handler does not need to thread it through.
 pub fn upgrade_websocket(
-  req: JsRequest,
   hinoto: Hinoto(Nil, body.Body),
   handler: WebSocketHandler(state, Nil),
   initial_state: state,
 ) -> Promise(Hinoto(Nil, body.Body)) {
-  let js_response = do_upgrade_websocket(req, handler, initial_state, hinoto.context)
+  let req = case hinoto.request.body {
+    RequestBody(req) -> req
+    _ -> panic as "Deno request body must be RequestBody"
+  }
+
+  let js_response =
+    do_upgrade_websocket(req, handler, initial_state, hinoto.context)
 
   promise.resolve(
     hinoto.Hinoto(
-      request: hinoto.request,
+      request: hinoto.request |> request.set_body(body.EmptyBody),
       response: response.new(101)
         |> response.set_body(WebSocketBody(js_response)),
       context: hinoto.context,
