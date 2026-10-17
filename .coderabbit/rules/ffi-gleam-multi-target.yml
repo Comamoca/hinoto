@@ -2,7 +2,7 @@ rules:
   # Multi-target FFI: JavaScript-only with no Erlang
   - id: ffi-gleam-multi-target-single-only
     files:
-      - "src/**/*.gleam"
+      - "**/src/**/*.gleam"
     pattern: '@external(javascript, '
     message: |
       This function only has `@external(javascript, ...)` specified.
@@ -27,7 +27,7 @@ rules:
   # Erlang-only @external with no JavaScript
   - id: ffi-gleam-multi-target-erlang-only
     files:
-      - "src/**/*.gleam"
+      - "**/src/**/*.gleam"
     pattern: '@external(erlang, '
     message: |
       This function only has `@external(erlang, ...)` specified.
@@ -46,7 +46,7 @@ rules:
   # Verify @target(javascript) guard
   - id: ffi-gleam-multi-target-annotation-validity
     files:
-      - "src/**/*.gleam"
+      - "**/src/**/*.gleam"
     pattern: '@target(javascript)'
     message: |
       This code block is guarded with `@target(javascript)`.

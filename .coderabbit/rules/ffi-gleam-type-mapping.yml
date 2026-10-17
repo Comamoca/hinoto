@@ -3,8 +3,8 @@ rules:
   - id: ffi-gleam-result-plain-object
     language: JavaScript
     files:
-      - "src/**/ffi.*.mjs"
-      - "src/**/*_ffi.mjs"
+      - "**/src/**/ffi.*.mjs"
+      - "**/src/**/*_ffi.mjs"
     rule:
       pattern: "return { $$$, ok: $VAL, $$$ };"
     message: |
@@ -25,8 +25,8 @@ rules:
   - id: ffi-gleam-tuple-mutation
     language: JavaScript
     files:
-      - "src/**/ffi.*.mjs"
-      - "src/**/*_ffi.mjs"
+      - "**/src/**/ffi.*.mjs"
+      - "**/src/**/*_ffi.mjs"
     rule:
       pattern: $TUPLE.push($VAL)
     message: |
@@ -44,8 +44,8 @@ rules:
   - id: ffi-gleam-custom-type-direct-access
     language: JavaScript
     files:
-      - "src/**/ffi.*.mjs"
-      - "src/**/*_ffi.mjs"
+      - "**/src/**/ffi.*.mjs"
+      - "**/src/**/*_ffi.mjs"
     rule:
       pattern: $INSTANCE[$FIELD_INDEX]
     message: |
@@ -76,8 +76,8 @@ rules:
   - id: ffi-gleam-list-raw-array
     language: JavaScript
     files:
-      - "src/**/ffi.*.mjs"
-      - "src/**/*_ffi.mjs"
+      - "**/src/**/ffi.*.mjs"
+      - "**/src/**/*_ffi.mjs"
     rule:
       pattern: "return [$$$]"
     message: |

@@ -2,7 +2,7 @@ rules:
   # Verify use of @external + Gleam implementation body (fallback pattern)
   - id: ffi-gleam-fallback-pattern
     files:
-      - "src/**/*.gleam"
+      - "**/src/**/*.gleam"
     pattern: '@external'
     message: |
       Consider whether a Gleam implementation body is also needed alongside `@external`.
@@ -31,8 +31,8 @@ rules:
   # Check for optimization opportunities in Gleam-only functions
   - id: ffi-gleam-fallback-optimization-opportunity
     files:
-      - "src/**/*_ffi.gleam"
-      - "src/**/ffi.gleam"
+      - "**/src/**/*_ffi.gleam"
+      - "**/src/**/ffi.gleam"
     pattern: 'pub fn'
     message: |
       This is a blanket informational notice for FFI-adjacent files.

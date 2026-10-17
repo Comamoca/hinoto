@@ -7,10 +7,10 @@ version = "0.0.1"
 
 description = ""
 licences = ["MIT"]
-repository = { type = "github", user = "Comamoca", repo = "hinoto" }
+repository = { type = "github", user = "Comamoca", repo = "hinoto", path = "packages/hinoto" }
 links = [
   { title = "Examples", href = "https://github.com/Comamoca/tree/main/example" },
-  { title = "hinoto/cli", href = "https://github.com/Comamoca/hinoto_cli" }
+  { title = "hinoto/cli", href = "https://github.com/Comamoca/hinoto/tree/main/packages/cli" }
 ]
 
 [documentation]
