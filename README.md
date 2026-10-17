@@ -14,26 +14,74 @@ A web framework written in Gleam, designed for multiple JavaScript runtimes!
 
 </div>
 
-<div align="center">
-
-</div>
-
 ## ✨ Features
 
-- 🌐 Support multi runtimes\
-  Supports JavaScript runtimes (Node.js, Deno, Bun), CloudFlare Workers, and Erlang with Mist.
-- 🧩 Module first\
-  Features are divided into modules, generating JavaScript that is advantageous for Tree-shaking. Additionally, no extra FFI code is mixed in during bundling.
+- 🌐 Multi runtime support\
+  Node.js, Deno, Bun, Cloudflare Workers, and Erlang (Mist).
+- 🧩 Module-first\
+  Features are divided into modules, generating JavaScript that is advantageous for tree-shaking. No extra FFI code is mixed in during bundling.
 - 🔧 Custom context\
-  The `Hinoto` type can contain arbitrary context, allowing runtime-specific information to be handled in the same way.
-- ⚡ Promise-based async (v2.0.0+)\
-  JavaScript targets use Promise-based handlers for async operations, while Erlang remains synchronous.
+  The `Hinoto` type can contain arbitrary context, allowing runtime-specific information to be handled uniformly.
+- ⚡ Promise-based async\
+  JavaScript targets use Promise-based handlers for async operations. Erlang remains synchronous.
+- 🕸️ WebSocket support\
+  All runtimes expose the same `websocket.handler` / `websocket.sync_handler` abstraction. See [WebSocket Support](#-websocket-support).
 
 ## 🚀 How to use
 
-### Node.js Example (v2.0.0+)
+### Deno
 
-Node.js requires `ws` as a runtime dependency in addition to `@hono/node-server`.
+```gleam
+import gleam/http/request
+import gleam/http/response
+import gleam/javascript/promise
+import gleam/option.{None}
+import hinoto
+import hinoto/body.{StringBody}
+import hinoto/runtime/deno
+
+pub fn main() -> Nil {
+  deno.start_server(
+    deno.handler(fn(hinoto) {
+      use updated <- promise.await(hinoto |> hinoto.handle(handler))
+      promise.resolve(updated)
+    }),
+    None,
+    None,
+  )
+}
+
+pub fn handler(req) {
+  case request.path_segments(req) {
+    [] -> response.new(200) |> response.set_body(StringBody("<h1>Hello from Deno!</h1>"))
+    _ -> response.new(404) |> response.set_body(StringBody("<h1>Not Found</h1>"))
+  }
+  |> promise.resolve
+}
+```
+
+### Bun
+
+Bun is identical to Deno -- change only the module name:
+
+```gleam
+import hinoto/runtime/bun
+
+pub fn main() -> Nil {
+  bun.start_server(
+    bun.handler(fn(hinoto) {
+      use updated <- promise.await(hinoto |> hinoto.handle(handler))
+      promise.resolve(updated)
+    }),
+    None,
+    None,
+  )
+}
+```
+
+### Node.js
+
+Node.js requires `@hono/node-server` (and `ws` for WebSocket support).
 
 ```gleam
 import gleam/http/request
@@ -44,58 +92,28 @@ import gleam/string
 import hinoto
 import hinoto/body.{StringBody}
 import hinoto/runtime/node
-import hinoto/websocket.{Text}
 
 pub fn main() -> Nil {
-  let fetch_handler =
-    node.handler(fn(hinoto_instance) {
-      case request.path_segments(hinoto_instance.request) {
-        ["ws"] -> node.upgrade_websocket(hinoto_instance, ws_handler(), Nil)
-        _ -> {
-          use updated_hinoto <- promise.await(
-            hinoto_instance
-            |> hinoto.handle(handler),
-          )
-          promise.resolve(updated_hinoto)
-        }
-      }
-    })
-
-  node.start_server(fetch_handler, None, None)
+  node.start_server(
+    node.handler(fn(hinoto) {
+      use updated <- promise.await(hinoto |> hinoto.handle(handler))
+      promise.resolve(updated)
+    }),
+    None,
+    None,
+  )
 }
 
 pub fn handler(req) {
   case request.path_segments(req) {
-    [] -> create_response(200, "<h1>Hello, Hinoto with Node.js!</h1>")
-    ["greet", name] ->
-      create_response(200, string.concat(["Hello! ", name, "!"]))
-    _ -> create_response(404, "<h1>Not Found</h1>")
+    [] -> response.new(200) |> response.set_body(StringBody("<h1>Hello from Node.js!</h1>"))
+    _ -> response.new(404) |> response.set_body(StringBody("<h1>Not Found</h1>"))
   }
   |> promise.resolve
 }
-
-fn ws_handler() -> websocket.WebSocketHandler(Nil, node.NodeEnv) {
-  websocket.handler(
-    on_open: fn(_ws, state, _ctx) { promise.resolve(state) },
-    on_message: fn(ws, state, _ctx, message) {
-      case message {
-        Text(text) -> websocket.send_text(ws, "Echo: " <> text)
-        _ -> Nil
-      }
-      promise.resolve(state)
-    },
-    on_close: fn(_ws, _state, _ctx) { promise.resolve(Nil) },
-  )
-}
-
-pub fn create_response(status: Int, html: String) {
-  response.new(status)
-  |> response.set_body(StringBody(html))
-  |> response.set_header("content-type", "text/html")
-}
 ```
 
-### Cloudflare Workers Example (v2.0.0+)
+### Cloudflare Workers
 
 ```gleam
 import gleam/http/request
@@ -110,34 +128,53 @@ pub fn main() {
   workers.serve(fn(hinoto: Hinoto(WorkersContext, Body)) -> Promise(
     Hinoto(WorkersContext, Body),
   ) {
-    use hinoto <- promise.await(
-      hinoto
-      |> hinoto.handle(handler),
-    )
-    promise.resolve(hinoto)
+    use updated <- promise.await(hinoto |> hinoto.handle(handler))
+    promise.resolve(updated)
   })
 }
 
 pub fn handler(req) {
   case request.path_segments(req) {
     [] ->
-      create_response(200, "<h1>Hello, Hinoto with Cloudflare Workers!</h1>")
-    ["greet", name] ->
-      create_response(200, string.concat(["Hello! ", name, "!"]))
-    _ -> create_response(404, "<h1>Not Found</h1>")
+      response.new(200) |> response.set_body(StringBody("<h1>Hello from Workers!</h1>"))
+    _ -> response.new(404) |> response.set_body(StringBody("<h1>Not Found</h1>"))
   }
   |> promise.resolve
 }
-
-pub fn create_response(status: Int, html: String) -> Response(Body) {
-  response.new(status)
-  |> response.set_body(StringBody(html))
-  |> response.set_header("content-type", "text/html")
-}
 ```
 
+### Mist (Erlang)
 
-> **Note**: v2.0.0 introduces Promise-based async handlers for JavaScript targets.
+Erlang uses synchronous handlers and `Request(Connection)` for streaming body support:
+
+```gleam
+import gleam/bytes_tree
+import gleam/http/request
+import gleam/http/response
+import gleam/option.{None}
+import gleam/string
+import hinoto/runtime/mist as hinoto_mist
+import mist
+
+pub fn main() {
+  hinoto_mist.start_server(handler, None, None)
+}
+
+pub fn handler(
+  req: request.Request(mist.Connection),
+) -> response.Response(mist.ResponseData) {
+  case request.path_segments(req) {
+    [] ->
+      response.new(200)
+      |> response.set_body(mist.Bytes(bytes_tree.from_string("<h1>Hello from Mist!</h1>")))
+      |> response.set_header("content-type", "text/html")
+    _ ->
+      response.new(404)
+      |> response.set_body(mist.Bytes(bytes_tree.from_string("<h1>Not Found</h1>")))
+      |> response.set_header("content-type", "text/html")
+  }
+}
+```
 
 ## ⬇️ Install
 
@@ -148,184 +185,29 @@ This repository is a monorepo. Each package lives under `packages/`.
 | `hinoto` | [`packages/hinoto`](./packages/hinoto) | The framework itself |
 | `hinoto_cli` | [`packages/cli`](./packages/cli) | Setup tools (`gleam run -m hinoto/cli`) |
 
-Add dependencies for hinoto and hinoto_cli to the `dependencies` section of `gleam.toml`.
+Add the dependency to your `gleam.toml`:
 
 ```toml
+# Hex (when published)
+hinoto = ">= 0.0.1"
+
+# Local path (monorepo development)
 hinoto = { path = "../hinoto/packages/hinoto" }
-hinoto_cli = { path = "../hinoto/packages/cli" }
 ```
+
+For Cloudflare Workers, use the CLI to scaffold a project:
 
 ```sh
 gleam run -m hinoto/cli -- workers init
 wrangler dev
 ```
 
-## ⛏️ Development
-
-For developing with various target JavaScript runtimes and CloudFlare Workers, `wrangler` is required.
-
-```sh
-cd example/
-
-# For CF Workers
-cd workers
-wrangler dev
-
-# For node.js
-cd node_server
-
-# For deno
-cd deno_server
-
-# For bun
-cd bun_server
-
-```
-
-## 📝 Todo
-
-See [todo.md](./packages/hinoto/docs/todo.md)
-
 ## 🕸️ WebSocket Support
 
-Hinoto now supports server-side WebSockets on Cloudflare Workers, Deno, Bun, Node.js, and Mist (Erlang). The `hinoto/websocket` module provides a common abstraction, while each runtime exposes its own upgrade function.
-
-### Cloudflare Workers
+All runtimes support server-side WebSockets through `hinoto/websocket`. JavaScript runtimes share the same `upgrade_websocket` signature; Mist uses a synchronous variant.
 
 ```gleam
-import gleam/http/request
-import gleam/javascript/promise.{type Promise}
-import hinoto.{type Hinoto}
-import hinoto/body.{type Body}
-import hinoto/runtime/workers.{type WorkersContext}
-import hinoto/websocket.{type WebSocketHandler, Text}
-
-pub fn main() {
-  workers.serve(fn(hinoto: Hinoto(WorkersContext, Body)) -> Promise(
-    Hinoto(WorkersContext, Body),
-  ) {
-    case request.path_segments(hinoto.request) {
-      ["ws"] -> workers.upgrade_websocket(hinoto, ws_handler(), Nil)
-      _ -> hinoto |> hinoto.handle(http_handler)
-    }
-  })
-}
-
-fn ws_handler() -> WebSocketHandler(Nil, WorkersContext) {
-  websocket.handler(
-    on_open: fn(_ws, state, _ctx) { promise.resolve(state) },
-    on_message: fn(ws, state, _ctx, message) {
-      case message {
-        Text(text) -> websocket.send_text(ws, "echo: " <> text)
-        _ -> Nil
-      }
-      promise.resolve(state)
-    },
-    on_close: fn(_ws, _state, _ctx) { promise.resolve(Nil) },
-  )
-}
-```
-
-### Mist (Erlang)
-
-Mist uses synchronous handlers:
-
-```gleam
-import gleam/http/request.{type Request}
-import hinoto/runtime/mist.{type HinotoMist}
-import hinoto/websocket.{type SyncWebSocketHandler, Text}
-import mist.{type Connection, type ResponseData}
-
-pub fn main() {
-  mist.start_server(handler, None, None)
-}
-
-fn handler(req: Request(Connection)) -> Response(ResponseData) {
-  case request.path_segments(req) {
-    ["ws"] -> mist.upgrade_websocket(hinoto, ws_handler(), Nil)
-    _ -> http_handler(req)
-  }
-}
-
-fn ws_handler() -> SyncWebSocketHandler(Nil, Nil) {
-  websocket.sync_handler(
-    on_open: fn(_ws, state, _ctx) { state },
-    on_message: fn(ws, state, _ctx, message) {
-      case message {
-        Text(text) -> websocket.send_text(ws, "echo: " <> text)
-        _ -> Nil
-      }
-      state
-    },
-    on_close: fn(_ws, _state, _ctx) { Nil },
-  )
-}
-```
-
-### Deno / Bun
-
-```gleam
-import hinoto/runtime/deno
-
-pub fn main() {
-  let app_handler = fn(hinoto) {
-    case request.path_segments(hinoto.request) {
-      ["ws"] -> deno.upgrade_websocket(hinoto, ws_handler(), Nil)
-      _ -> hinoto |> hinoto.handle(http_handler)
-    }
-  }
-
-  deno.start_server(deno.handler(app_handler), None, None)
-}
-```
-
-Bun is identical apart from the module name. Bun registers its WebSocket handler
-on `Bun.serve`, but Hinoto hides that behind an internal dispatcher, so
-`bun.start_server` takes no `websocket` argument and each route may use its own
-handler. See `example/bun_server` for a complete example.
-
-### Node.js
-
-Node.js uses `@hono/node-server` for the HTTP server and `ws` for WebSocket handling. The Node runtime bindings needed for an upgrade travel in the `NodeEnv` context that `node.handler` provides.
-
-```gleam
-import hinoto/runtime/node
-import hinoto/websocket.{Text}
-
-fn ws_handler() -> websocket.WebSocketHandler(Nil, node.NodeEnv) {
-  websocket.handler(
-    on_open: fn(_ws, state, _ctx) { promise.resolve(state) },
-    on_message: fn(ws, state, _ctx, message) {
-      case message {
-        Text(text) -> websocket.send_text(ws, "echo: " <> text)
-        _ -> Nil
-      }
-      promise.resolve(state)
-    },
-    on_close: fn(_ws, _state, _ctx) { promise.resolve(Nil) },
-  )
-}
-
-pub fn main() {
-  node.start_server(
-    node.handler(fn(hinoto) {
-      case request.path_segments(hinoto.request) {
-        ["ws"] -> node.upgrade_websocket(hinoto, ws_handler(), Nil)
-        _ -> hinoto |> hinoto.handle(http_handler)
-      }
-    }),
-    None,
-    None,
-  )
-}
-```
-
-### A single signature across the JavaScript runtimes
-
-Every JavaScript runtime exposes the same upgrade call, so a handler ports
-between them by changing only the module name and the context type:
-
-```gleam
+// JavaScript runtimes (Deno, Bun, Node.js, Workers)
 pub fn upgrade_websocket(
   hinoto: Hinoto(ctx, Body),
   handler: WebSocketHandler(state, ctx),
@@ -333,51 +215,53 @@ pub fn upgrade_websocket(
 ) -> Promise(Hinoto(ctx, Body))
 ```
 
-| Runtime | `ctx` | Where the upgrade gets its runtime handle |
-|---------|-------|--------------------------------------------|
-| **Cloudflare Workers** | `WorkersContext` | `RequestBody` in `hinoto.request` |
-| **Deno** | `Nil` | `RequestBody` in `hinoto.request` |
-| **Bun** | `Nil` | `RequestBody` in `hinoto.request` (server attached by `bun.handler`) |
-| **Node.js** | `NodeEnv` | `NodeEnv` context |
+| Runtime | Context type (`ctx`) | Handler type |
+|---------|---------------------|--------------|
+| **Cloudflare Workers** | `WorkersContext` | `WebSocketHandler` |
+| **Deno** | `Nil` | `WebSocketHandler` |
+| **Bun** | `Nil` | `WebSocketHandler` |
+| **Node.js** | `NodeEnv` | `WebSocketHandler` |
+| **Mist (Erlang)** | `Nil` | `SyncWebSocketHandler` |
 
-Mist keeps its own shape: Erlang has no promises, so it takes a
-`SyncWebSocketHandler` and returns Mist's `Response(ResponseData)` rather than a
-`Hinoto`.
+See [`example/`](./example) for complete WebSocket examples for each runtime.
 
-## ⚠️ Breaking Changes
+## ⚠️ Request body types
 
-- `upgrade_websocket` takes `(hinoto, handler, initial_state)` on every JavaScript runtime. The raw `JsRequest` argument is gone, as is Bun's `server` argument.
-- `deno.handler`, `bun.handler` and `node.handler` take `fn(Hinoto(ctx, body.Body)) -> Promise(Hinoto(ctx, body.Body))`. They no longer receive the raw `JsRequest`.
-- `bun.start_server` and `bun.serve` no longer take a `JsWebSocketHandler`; `bun.websocket_handler` and the `JsWebSocketHandler` type were removed.
-- `deno.to_gleam_request` and `bun.to_gleam_request` return `Request(body.Body)` instead of `Request(String)`.
-- Deno, Bun and Node.js now carry the request body as a lazy `body.RequestBody`, matching Cloudflare Workers. Read it with `body.read_text()`, `body.read_json()`, etc. instead of matching on `body.StringBody`.
-- `node.start_server` uses `body.Body` for request/response bodies.
+Each runtime uses a body type suited to its environment:
 
-## Request Body Types by Runtime
-
-Each runtime uses an optimal body type for its environment:
-
-| Runtime | Body Type | Description |
+| Runtime | Body type | Description |
 |---------|-----------|-------------|
-| **Mist (Erlang)** | `Connection` | Native streaming body support for efficient handling of large uploads |
-| **Node.js** | `Body` | MDN-compliant flexible body type |
-| **Deno** | `Body` | MDN-compliant flexible body type |
-| **Bun** | `Body` | MDN-compliant flexible body type |
-| **Cloudflare Workers** | `Body` | Flexible MDN-compliant body type for lazy reading |
+| **Mist (Erlang)** | `Connection` | Streaming body for large uploads and chunked data |
+| **Node.js / Deno / Bun / Workers** | `Body` | Lazy-reading body (`body.read_text()`, `body.read_json()`, etc.) |
 
-**Why different types?**
-- **Erlang/Mist**: Uses `Connection` to support streaming request bodies, enabling efficient handling of large file uploads and chunked data
-- **Node.js / Deno / Bun / Cloudflare Workers**: Use `Body` (flexible MDN-compliant body type) for lazy reading of request bodies via `body.read_text()`, `body.read_json()`, etc.
+## ⛏️ Development
+
+```sh
+cd example/
+
+# Cloudflare Workers (requires wrangler)
+cd workers && wrangler dev
+
+# Deno
+cd deno_server && gleam run --target javascript
+
+# Bun
+cd bun_server && gleam run --target javascript
+
+# Node.js
+cd node_server && gleam run --target javascript
+
+# Mist (Erlang)
+cd mist_server && gleam run --target erlang
+```
+
+## 📝 Todo
+
+See [todo.md](./packages/hinoto/docs/todo.md)
 
 ## 📜 License
 
 MIT
-
-### 🧩 Modules
-
-- [gleam_stdlib](https://hexdocs.pm/gleam_stdlib)
-- [gleam_javascript](https://hexdocs.pm/gleam_javascript)
-- [gleam_http](https://hexdocs.pm/gleam_http)
 
 ## 👏 Affected projects
 
