@@ -15,7 +15,7 @@ target = "javascript"
 
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
-hinoto = { path = "../.." }
+hinoto = { path = "../../packages/hinoto" }
 gleam_javascript = ">= 1.0.0 and < 2.0.0"
 gleam_http = ">= 4.1.1 and < 5.0.0"
 conversation = ">= 2.0.2 and < 3.0.0"

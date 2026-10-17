@@ -2,8 +2,8 @@ rules:
   # Check if external library types are being exposed directly as Gleam API
   - id: ffi-gleam-api-external-type-leak
     files:
-      - "src/**/*_ffi.gleam"
-      - "src/**/ffi.gleam"
+      - "**/src/**/*_ffi.gleam"
+      - "**/src/**/ffi.gleam"
     pattern: 'pub type'
     message: |
       A public Gleam type (`pub type`) is defined here.
@@ -42,7 +42,7 @@ rules:
   # Check return type safety of FFI functions
   - id: ffi-gleam-api-return-type-safety
     files:
-      - "src/**/*.gleam"
+      - "**/src/**/*.gleam"
     pattern: '@external($TARGET, $MODULE, $FUNC)'
     message: |
       Verify that the return type of the `@external` function is appropriate.

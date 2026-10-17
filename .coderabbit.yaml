@@ -38,7 +38,7 @@ reviews:
 
   path_instructions:
     # FFI files: bridge between Gleam type system and JavaScript runtime — focus on type conversion accuracy
-    - path: "src/hinoto/runtime/ffi.*.mjs"
+    - path: "**/src/hinoto/runtime/ffi.*.mjs"
       instructions: |
         This file is the FFI bridge between Gleam and the JavaScript runtime. Please focus on the following.
 
@@ -69,7 +69,7 @@ reviews:
         Confirm that `undefined` / `null` is not returned as-is. Gleam's `Option` type must be expressed as `Some(x)` or `None`.
 
     # Gleam source files
-    - path: "src/**/*.gleam"
+    - path: "**/src/**/*.gleam"
       instructions: |
         This is a Gleam code review. Please verify the following.
 
@@ -87,7 +87,7 @@ reviews:
         - If type annotations are omitted, verify that type inference works correctly.
 
     # test files
-    - path: "test/**/*.gleam"
+    - path: "**/test/**/*.gleam"
       instructions: |
         This is a review of test code.
 

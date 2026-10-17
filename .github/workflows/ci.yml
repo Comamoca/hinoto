@@ -11,6 +11,10 @@ jobs:
     name: Test JavaScript Target (Node.js)
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: packages/hinoto
+
     steps:
       - uses: actions/checkout@v7
 
@@ -22,24 +26,28 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install dependencies
-        run: nix develop --command gleam deps download
+        run: nix develop ../.. --command gleam deps download
 
       - name: Check code (JavaScript target)
-        run: nix develop --command gleam check --target javascript
+        run: nix develop ../.. --command gleam check --target javascript
 
       - name: Check formatting
-        run: nix develop --command gleam format --check
+        run: nix develop ../.. --command gleam format --check
 
       - name: Build (JavaScript target)
-        run: nix develop --command gleam build --target javascript
+        run: nix develop ../.. --command gleam build --target javascript
 
       - name: Run tests (Node.js runtime)
-        run: nix develop --command gleam test --target javascript --runtime node
+        run: nix develop ../.. --command gleam test --target javascript --runtime node
 
   test-javascript-deno:
     name: Test JavaScript Target (Deno)
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: packages/hinoto
+
     steps:
       - uses: actions/checkout@v7
 
@@ -50,18 +58,22 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install dependencies
-        run: nix develop --command gleam deps download
+        run: nix develop ../.. --command gleam deps download
 
       - name: Build (JavaScript target)
-        run: nix develop --command gleam build --target javascript
+        run: nix develop ../.. --command gleam build --target javascript
 
       - name: Run tests (Deno runtime)
-        run: nix develop --command gleam test --target javascript --runtime deno
+        run: nix develop ../.. --command gleam test --target javascript --runtime deno
 
   test-javascript-bun:
     name: Test JavaScript Target (Bun)
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: packages/hinoto
+
     steps:
       - uses: actions/checkout@v7
 
@@ -72,18 +84,22 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install dependencies
-        run: nix develop --command gleam deps download
+        run: nix develop ../.. --command gleam deps download
 
       - name: Build (JavaScript target)
-        run: nix develop --command gleam build --target javascript
+        run: nix develop ../.. --command gleam build --target javascript
 
       - name: Run tests (Bun runtime)
-        run: nix develop --command gleam test --target javascript --runtime bun
+        run: nix develop ../.. --command gleam test --target javascript --runtime bun
 
   test-erlang:
     name: Test Erlang Target
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: packages/hinoto
+
     steps:
       - uses: actions/checkout@v7
 
@@ -94,13 +110,42 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install dependencies
-        run: nix develop --command gleam deps download
+        run: nix develop ../.. --command gleam deps download
 
       - name: Build (Erlang target)
-        run: nix develop --command gleam build --target erlang
+        run: nix develop ../.. --command gleam build --target erlang
 
       - name: Run tests (Erlang target)
-        run: nix develop --command gleam test --target erlang
+        run: nix develop ../.. --command gleam test --target erlang
 
       - name: Check formatting
-        run: nix develop --command gleam format --check
+        run: nix develop ../.. --command gleam format --check
+
+  test-cli:
+    name: Test hinoto_cli
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/cli
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Install dependencies
+        run: nix develop ../.. --command gleam deps download
+
+      - name: Check code
+        run: nix develop ../.. --command gleam check
+
+      - name: Run tests
+        run: nix develop ../.. --command gleam test
+
+      - name: Check formatting
+        run: nix develop ../.. --command gleam format --check src test

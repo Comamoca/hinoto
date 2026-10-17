@@ -10,7 +10,7 @@
 
 ### CloudFlare Workers
 
-You can easily create wrangler configuration files using [hinoto/cli](https://github.com/Comamoca/hinoto_cli).
+You can easily create wrangler configuration files using [hinoto/cli](https://github.com/Comamoca/hinoto/tree/main/packages/cli).
 
 ```sh
 gleam new project_name

@@ -141,11 +141,18 @@ pub fn create_response(status: Int, html: String) -> Response(Body) {
 
 ## ⬇️ Install
 
+This repository is a monorepo. Each package lives under `packages/`.
+
+| Package | Path | Description |
+| --- | --- | --- |
+| `hinoto` | [`packages/hinoto`](./packages/hinoto) | The framework itself |
+| `hinoto_cli` | [`packages/cli`](./packages/cli) | Setup tools (`gleam run -m hinoto/cli`) |
+
 Add dependencies for hinoto and hinoto_cli to the `dependencies` section of `gleam.toml`.
 
 ```toml
-hinoto = { git = "https://github.com/Comamoca/hinoto", ref = "main" }
-hinoto_cli = { git = "https://github.com/Comamoca/hinoto_cli", ref = "main" }
+hinoto = { path = "../hinoto/packages/hinoto" }
+hinoto_cli = { path = "../hinoto/packages/cli" }
 ```
 
 ```sh
@@ -177,7 +184,7 @@ cd bun_server
 
 ## 📝 Todo
 
-See [todo.md](./docs/todo.md)
+See [todo.md](./packages/hinoto/docs/todo.md)
 
 ## 🕸️ WebSocket Support
 

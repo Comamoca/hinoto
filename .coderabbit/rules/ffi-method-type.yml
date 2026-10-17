@@ -4,8 +4,8 @@ rules:
   - id: ffi-gleam-method-string-assignment
     language: JavaScript
     files:
-      - "src/**/ffi.*.mjs"
-      - "src/**/*_ffi.mjs"
+      - "**/src/**/ffi.*.mjs"
+      - "**/src/**/*_ffi.mjs"
     rule:
       pattern: "method: $METHOD.toUpperCase()"
     message: |
@@ -34,8 +34,8 @@ rules:
   - id: ffi-gleam-method-raw-string
     language: JavaScript
     files:
-      - "src/**/ffi.*.mjs"
-      - "src/**/*_ffi.mjs"
+      - "**/src/**/ffi.*.mjs"
+      - "**/src/**/*_ffi.mjs"
     rule:
       pattern: "method: $REQ.method"
     message: |
@@ -64,8 +64,8 @@ rules:
   - id: ffi-gleam-method-case-sensitive
     language: JavaScript
     files:
-      - "src/**/ffi.*.mjs"
-      - "src/**/*_ffi.mjs"
+      - "**/src/**/ffi.*.mjs"
+      - "**/src/**/*_ffi.mjs"
     rule:
       pattern: $VAR.method === "get"
     message: |

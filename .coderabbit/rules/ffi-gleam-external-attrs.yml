@@ -2,7 +2,7 @@ rules:
   # Check for @external functions missing type annotations
   - id: ffi-gleam-external-no-type-annotation
     files:
-      - "src/**/*.gleam"
+      - "**/src/**/*.gleam"
     pattern: '@external'
     message: |
       Functions with the `@external` attribute **require type annotations**.
@@ -29,7 +29,7 @@ rules:
   # Check for target mismatch in @external
   - id: ffi-gleam-external-target-mismatch
     files:
-      - "src/**/*.gleam"
+      - "**/src/**/*.gleam"
     pattern: '@external(javascript'
     message: |
       Verify that the path in `@external(javascript, ...)` is correct.
@@ -51,7 +51,7 @@ rules:
   # Check consistency between @external paths and actual file structure
   - id: ffi-gleam-external-path-consistency
     files:
-      - "src/**/*.gleam"
+      - "**/src/**/*.gleam"
     pattern: '@external(javascript, "./'
     message: |
       Verify that the JS file path in @external matches the actual file structure.
